@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApiUrl } from 'apiConfig'; // Absolute import with jsconfig.json
 
 export const useBookmark = (poll) => {
   const [bookmarked, setBookmarked] = useState(false);
@@ -26,10 +27,11 @@ export const useBookmark = (poll) => {
   }, []);
 
   useEffect(() => {
+    setError(null); // Clear error on new poll or token
     const checkBookmark = async () => {
       if (!token || !poll?.id) return;
       try {
-        const response = await fetch(`http://192.168.190.150:8000/api/bookmarks/${poll.id}/check`, {
+        const response = await fetch(getApiUrl(`bookmarks/${poll.id}/check`), {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -61,7 +63,7 @@ export const useBookmark = (poll) => {
 
     setLoading(true);
     try {
-      const response = await fetch(`http://192.168.208.150:8002/api/bookmarks/${poll.id}/toggle`, {
+      const response = await fetch(getApiUrl(`bookmarks/${poll.id}/toggle`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

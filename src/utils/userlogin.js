@@ -1,8 +1,10 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { showToast } from './toastconfig';
+import { getApiUrl } from '../../apiConfig';
 
-const API_URL = 'http://192.168.0.48:8000/api/login';
+//const API_URL = 'http://192.168.0.48:8000/api/login';
+const API_URL = getApiUrl('login');
 
 // Helper function to store user data in AsyncStorage
 const storeUserData = async ({ id, email, username, token }) => {

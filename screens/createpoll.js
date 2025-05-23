@@ -20,6 +20,10 @@ import Toast from "react-native-toast-message";
 import useLoadFonts from '../src/hooks/useLoadFonts';
 import { toastConfig, showToast } from "../src/utils/toastconfig";
 import { ThemeContext } from '../src/components/ThemeContext';
+import { getApiUrl } from '../apiConfig'; // Import from root
+
+// Use getApiUrl with an empty endpoint to get the base URL (http://192.168.169.150:8000/api)
+
 
 SplashScreen.preventAutoHideAsync();
 const CreatePollPage = ({ navigation, onClose, addPollOptimistically, fetchUserAndPolls }) => {
@@ -90,7 +94,8 @@ const CreatePollPage = ({ navigation, onClose, addPollOptimistically, fetchUserA
 
       const durationInMinutes = getDurationInMinutes();
       //const API_URL = "https://deeppink-sardine-461321.hostingersite.com/api/polls";
-      const API_URL = "http://192.168.169.150:8000/api/polls";
+      //const API_URL = "http://192.168.1.9:8000/api/polls";
+      const API_URL = getApiUrl('polls');
      
 
       const payload = {

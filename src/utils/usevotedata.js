@@ -1,16 +1,17 @@
 import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getApiUrl } from 'apiConfig';
 
-// const API_BASE_URL = "https://deeppink-sardine-461321.hostingersite.com/api";
-const API_BASE_URL = "http://192.168.169.150:8000/api";
+const API_URL = getApiUrl('');
 
-
-const useVoteData = (pollId, showToast) => {
+const useVoteData = (pollId, stopPolling = false) => {
   const [selectedOption, setSelectedOption] = useState(null);
   const [voteResults, setVoteResults] = useState([]);
   const [totalVotes, setTotalVotes] = useState(0);
   const [votingDisabled, setVotingDisabled] = useState(false);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const fetchSelectedVote = useCallback(async () => {
     if (!pollId) {
@@ -21,20 +22,30 @@ const useVoteData = (pollId, showToast) => {
       const userId = await AsyncStorage.getItem("user_id");
       if (!userId) return;
 
-      const savedVote = await AsyncStorage.getItem(`selected_vote_${pollId}_${userId}`);
+      const savedVote = await AsyncStorage.getItem(`API_URL${pollId}_${userId}`);
       setSelectedOption(savedVote ? parseInt(savedVote, 10) : null);
-    } catch (error) {
-      console.error("Error fetching selected vote:", error);
+    } catch (err) {
+      console.error("Error fetching selected vote:", err);
+      setError("Failed to fetch selected vote");
     }
   }, [pollId]);
 
   const fetchVoteResults = useCallback(async () => {
+    if (!pollId) {
+      console.log('fetchVoteResults: No pollId provided');
+      return;
+    }
     try {
-      const response = await axios.get(`${API_BASE_URL}/results/${pollId}`);
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/results/${pollId}`);
       setVoteResults(response.data.results || []);
       setTotalVotes(response.data.total_votes || 0);
-    } catch (error) {
-      console.error("Error fetching vote results:", error);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching vote results:", err);
+      setError("Failed to fetch vote results");
+    } finally {
+      setLoading(false);
     }
   }, [pollId]);
 
@@ -43,18 +54,18 @@ const useVoteData = (pollId, showToast) => {
 
     try {
       setVotingDisabled(true);
+      setError(null);
       const userId = await AsyncStorage.getItem("user_id");
       const token = await AsyncStorage.getItem("auth_token");
 
-
       if (!userId || !token) {
-        showToast?.("error", "Please log in to vote");
+        setError("Please log in to vote");
         return;
       }
 
       const isUnvoting = selectedOption === optionId;
       const response = await axios.post(
-        `${API_BASE_URL}/vote`,
+        `${API_URL}/vote`,
         { poll_id: pollId, option_id: optionId, user_id: userId },
         { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } }
       );
@@ -65,34 +76,37 @@ const useVoteData = (pollId, showToast) => {
         setVoteResults(response.data.results);
         setTotalVotes(response.data.total_votes);
 
-        // Update AsyncStorage
         const voteKey = `selected_vote_${pollId}_${userId}`;
         if (isUnvoting) {
           await AsyncStorage.removeItem(voteKey);
         } else {
           await AsyncStorage.setItem(voteKey, optionId.toString());
         }
-
-        showToast?.("success", response.data.message || "Vote processed successfully");
       } else {
-        showToast?.("error", response.data.message || "Vote processing failed");
+        setError(response.data.message || "Vote processing failed");
       }
-    } catch (error) {
-      console.error("Vote error:", error.response?.data || error);
-      showToast?.("error", error.response?.data?.message || "Failed to process vote");
+    } catch (err) {
+      console.error("Vote error:", err.response?.data || err);
+      setError(err.response?.data?.message || "Failed to process vote");
     } finally {
-      setVotingDisabled(false); // Reset immediately after vote
+      setVotingDisabled(false);
     }
   };
 
   useEffect(() => {
+    if (!pollId) return;
+
     fetchSelectedVote();
     fetchVoteResults();
-    const interval = setInterval(fetchVoteResults, 500);
-    return () => clearInterval(interval);
-  }, [fetchSelectedVote, fetchVoteResults]);
 
-  return { selectedOption, voteResults, totalVotes, handleVote, votingDisabled };
+    let interval;
+    if (!stopPolling) {
+      interval = setInterval(fetchVoteResults, 5000);
+    }
+    return () => interval && clearInterval(interval);
+  }, [fetchSelectedVote, fetchVoteResults, pollId, stopPolling]);
+
+  return { selectedOption, voteResults, totalVotes, handleVote, votingDisabled, error, loading };
 };
 
 export default useVoteData;

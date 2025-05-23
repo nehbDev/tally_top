@@ -18,6 +18,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { showToast } from '../../src/utils/toastconfig';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
+import { getApiUrl } from '../../apiConfig';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -66,8 +67,9 @@ const SignUp = ({ navigation }) => {
     }
   };
 
-  const API_URL = 'http://192.168.169.150:8000/api/validate-step';
-  const API_BASE_URL = 'http://192.168.169.150:8000/api';
+  const API_URL = getApiUrl('validate-step');
+  const API_BASE_URL = getApiUrl('signup'); // Base URL
+  //const API_URL = getApiUrl('polls');
 
   const handleSignUp = useCallback(async () => {
     setLoading(true);
@@ -75,7 +77,7 @@ const SignUp = ({ navigation }) => {
 
     try {
       console.log('Signing up with email:', email);
-      const response = await axios.post(`${API_BASE_URL}/signup`, {
+      const response = await axios.post(`${API_BASE_URL}`, {
         username,
         email,
         password,

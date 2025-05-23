@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "tally_top",
-    "slug": "tally_top",
+    "name": "tally_tap",
+    "slug": "tally_tap",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

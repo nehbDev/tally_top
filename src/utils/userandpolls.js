@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import moment from "moment";
+import { getApiUrl } from '../../apiConfig';
 
-const API_BASE_URL = "http://192.168.169.150:8000/api";
-const API_URL = `${API_BASE_URL}/getPolls`;
-
+//const API_BASE_URL = "http://192.168.169.150:8000/api";
+//const API_URL = `${API_BASE_URL}/getPolls`;
+const API_URL = getApiUrl('getPolls');
+const API_BASE_URL = getApiUrl('');
 const useFetchUserAndPolls = () => {
   const [user, setUser] = useState(null);
   const [polls, setPolls] = useState([]);
