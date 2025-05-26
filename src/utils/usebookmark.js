@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getApiUrl } from 'apiConfig'; // Absolute import with jsconfig.json
+import { getApiUrl } from '../../apiConfig';
 
 export const useBookmark = (poll) => {
   const [bookmarked, setBookmarked] = useState(false);

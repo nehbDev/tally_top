@@ -33,7 +33,7 @@ const CommentSection = ({ pollId }) => {
   const [isReactMode, setIsReactMode] = useState(false);
   const { theme } = useContext(ThemeContext);
   const inputRef = useRef(null);
-  const apiUrl = `http://192.168.190.150:8000/api/comments/${pollId}`;
+  const apiUrl = `http://192.168.1.21:8000/api/comments/${pollId}`;
 
   const emojiReactions = [
     { emoji: "👍", text: "Liked", color: "#0000FF" },

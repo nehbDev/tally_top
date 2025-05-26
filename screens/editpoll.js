@@ -107,7 +107,7 @@ const EditPoll = ({ route, navigation }) => {
       ]);
 
       const durationInMinutes = getDurationInMinutes();
-      const API_URL = `http://192.168.1.15:8002/api/polls/${pollData.id}`;
+      const API_URL = `http://192.168.1.21:8000/api/editpoll/${pollData.id}`;
 
       const payload = {
         user_id: parseInt(userId, 10),

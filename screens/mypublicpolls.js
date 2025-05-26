@@ -7,7 +7,7 @@ import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import * as Clipboard from "expo-clipboard"; // Import Clipboard for copy functionality
 import { ThemeContext } from "../src/components/ThemeContext"; // Adjust path as needed
 
-const API_URL = "http://192.168.169.150:8000/api/getPolls"; 
+const API_URL = "http://192.168.1.21:8000/api/getPolls"; 
 const MyPublicPolls = ({ navigation }) => {
   const { theme } = useContext(ThemeContext);
   const [user, setUser] = useState(null);

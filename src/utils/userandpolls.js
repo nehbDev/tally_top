@@ -217,7 +217,7 @@ const useFetchUserAndPolls = () => {
             const response = await axios.get(`${API_BASE_URL}/results/${pollId}`);
             return { pollId, totalVotes: response.data.total_votes || 0 };
           } catch (error) {
-            console.error(`Error refreshing vote results for poll ${pollId}:`, error);
+            //console.error(`Error refreshing vote results for poll ${pollId}:`, error);
             return { pollId, totalVotes: 0 };
           }
         })

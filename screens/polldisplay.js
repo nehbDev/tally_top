@@ -13,16 +13,15 @@ import {
 } from "react-native";
 import { useRoute } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import * as SplashScreen from 'expo-splash-screen';
+import * as SplashScreen from "expo-splash-screen";
 import CommentSection from "../src/components/commentsection";
 import DeletePollModal from "../src/components/deletemodal";
 import useVoteData from "../src/utils/usevotedata";
 import { showToast } from "../src/utils/toastconfig";
 import { useBookmark } from "../src/utils/usebookmark";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { ThemeContext } from '../src/components/ThemeContext';
-import { Menu, MenuItem } from 'react-native-material-menu';
-import { getApiUrl } from '../apiConfig'; // Import from root// Absolute import
+import { ThemeContext } from "../src/components/ThemeContext";
+import { Menu, MenuItem } from "react-native-material-menu";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,7 +47,7 @@ const PollDisplay = ({ navigation }) => {
     totalVotes,
     handleVote,
     votingDisabled,
-  } = useVoteData(poll.id);
+  } = useVoteData(poll.id, showToast); // Pass showToast
   const [isExpired, setIsExpired] = useState(false);
   const [remainingTime, setRemainingTime] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
@@ -60,11 +59,10 @@ const PollDisplay = ({ navigation }) => {
   const fetchQrCode = async () => {
     try {
       console.log("Starting fetchQrCode for poll ID:", poll.id);
-      setIsFetchingQr(true);
       const token = await AsyncStorage.getItem("auth_token");
       console.log("Token:", token);
       const response = await fetch(
-        getApiUrl(`polls/${poll.id}/qrcode`),
+        `http://192.168.1.21:8000/api/polls/${poll.id}/qrcode`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -85,8 +83,6 @@ const PollDisplay = ({ navigation }) => {
     } catch (error) {
       console.log("Fetch error:", error.message);
       showToast("error", "Error fetching QR code: " + error.message);
-    } finally {
-      setIsFetchingQr(false);
     }
   };
 
@@ -205,7 +201,7 @@ const PollDisplay = ({ navigation }) => {
         )
       ),
     });
-  }, [navigation, theme, poll.isCreatedByMe]);
+  }, [navigation]);
 
   console.log("fetch []", poll.isCreatedByMe);
 
@@ -226,28 +222,49 @@ const PollDisplay = ({ navigation }) => {
               className="w-[70px] h-[70px] rounded-full mr-2 border-2 border-[#50A8EE]"
             />
             <View>
-              <Text className={`text-[16px] tracking-wide ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+              <Text
+                className={`text-[16px] tracking-wide ${
+                  theme === 'dark' ? 'text-white' : 'text-black'
+                }`}
+              >
                 {poll.user?.username}
               </Text>
-              <Text className={`text-[11px] tracking-normal ${theme === 'dark' ? 'text-[#A0A0A0]' : 'text-[#666666]'}`}>
+              <Text
+                className={`text-[11px] tracking-normal ${
+                  theme === 'dark' ? 'text-[#ccc]' : 'text-[#555]'
+                }`}
+              >
                 {isExpired ? "Expired" : `${remainingTime}`} left
               </Text>
             </View>
           </View>
         </View>
 
-        <Text className={`text-[22px] tracking-wide mt-5 ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+        <Text
+          className={`text-[22px] tracking-wide mt-5 ${
+            theme === 'dark' ? 'text-white' : 'text-black'
+          }`}
+        >
           {poll.title}
         </Text>
-        <Text className={`text-[15px] tracking-wide mt-1 mb-4 ${theme === 'dark' ? 'text-[#A0A0A0]' : 'text-[#666666]'}`}>
-          {poll.description ? poll.description : <Text className="italic">No description</Text>}
+        <Text
+          className={`text-[15px] tracking-wide mt-1 mb-4 ${
+            theme === 'dark' ? 'text-[#ccc]' : 'text-[#555]'
+          }`}
+        >
+          {poll.description ? (
+            poll.description
+          ) : (
+            <Text className="italic">No description</Text>
+          )}
         </Text>
 
         <FlatList
           data={poll.choices}
           keyExtractor={(choice) => choice.id.toString()}
           renderItem={({ item }) => {
-            const votePercentage = voteResults.find((result) => result.option_id === item.id)?.percentage || 0;
+            const votePercentage =
+              voteResults.find((result) => result.option_id === item.id)?.percentage || 0;
             const isSelected = selectedOption === item.id;
             return (
               <TouchableOpacity
@@ -310,21 +327,41 @@ const PollDisplay = ({ navigation }) => {
           scrollEnabled={false}
         />
 
-        {/* Poll Metadata Section */}
         <View className="mt-4 px-1">
-          <View className={`flex-row items-center gap-2 border-b mb-5 pb-3 ${theme === 'dark' ? 'border-[#fff]' : 'border-[#ccc]'}`}>
-            <Text className={`text-[12px] tracking-normal ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+          <View
+            className={`flex-row items-center gap-2 border-b mb-5 pb-3 ${
+              theme === 'dark' ? 'border-[#fff]' : 'border-[#ccc]'
+            }`}
+          >
+            <Text
+              className={`text-[12px] tracking-normal ${
+                theme === 'dark' ? 'text-white' : 'text-black'
+              }`}
+            >
               {poll.timeAgo}
             </Text>
-            <Icon name="circle" size={5} color={theme === 'dark' ? '#A0A0A0' : '#666666'} />
-            <Text className={`text-[12px] tracking-normal ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+            <Icon name="circle" size={5} color={theme === 'dark' ? '#ccc' : '#555'} />
+            <Text
+              className={`text-[12px] tracking-normal ${
+                theme === 'dark' ? 'text-white' : 'text-black'
+              }`}
+            >
               {createdDate}
             </Text>
           </View>
           <View className="flex-row items-center justify-between">
             <View className="flex-row items-center">
-              <Icon name="poll" size={19} color={theme === 'dark' ? '#A0A0A0' : '#666666'} className="mr-1.5" />
-              <Text className={`text-[13px] tracking-wide ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+              <Icon
+                name="poll"
+                size={19}
+                color={theme === 'dark' ? '#ccc' : '#555'}
+                className="mr-1.5"
+              />
+              <Text
+                className={`text-[13px] tracking-wide ${
+                  theme === 'dark' ? 'text-white' : 'text-black'
+                }`}
+              >
                 {totalVotes} {totalVotes === 1 ? 'vote' : 'votes'}
               </Text>
             </View>
@@ -341,7 +378,7 @@ const PollDisplay = ({ navigation }) => {
                   <Icon
                     name={bookmarked ? "bookmark" : "bookmark-outline"}
                     size={19}
-                    color={bookmarked ? '#50A8EE' : theme === 'dark' ? '#A0A0A0' : '#666666'}
+                    color={bookmarked ? '#50A8EE' : theme === 'dark' ? '#ccc' : '#555'}
                     className="mr-1"
                   />
                 </TouchableOpacity>
@@ -355,7 +392,7 @@ const PollDisplay = ({ navigation }) => {
                   }}
                   disabled={isFetchingQr}
                 >
-                  <Icon name="share" size={22} color={theme === 'dark' ? '#A0A0A0' : '#666666'} />
+                  <Icon name="share" size={22} color={theme === 'dark' ? '#ccc' : '#555'} />
                 </TouchableOpacity>
 
                 <Modal
@@ -373,20 +410,42 @@ const PollDisplay = ({ navigation }) => {
                       setQrCodeImage(null);
                     }}
                   >
-                    <View className={`flex-1 justify-end ${theme === 'dark' ? 'bg-black/50' : 'bg-black/50'}`}>
-                      <View className={`rounded-t-3xl p-5 ${theme === 'dark' ? 'bg-[#2A2A2A]' : 'bg-white'}`}>
+                    <View
+                      className={`flex-1 justify-end ${
+                        theme === 'dark' ? 'bg-black/50' : 'bg-black/50'
+                      }`}
+                    >
+                      <View
+                        className={`rounded-t-3xl p-5 ${
+                          theme === 'dark' ? 'bg-[#2A2A2A]' : 'bg-white'
+                        }`}
+                      >
                         {isFetchingQr && (
-                          <Text className={`text-[14px] tracking-wide ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+                          <Text
+                            className={`text-[14px] tracking-wide ${
+                              theme === 'dark' ? 'text-white' : 'text-black'
+                            }`}
+                          >
                             Loading QR code...
                           </Text>
                         )}
                         {!isFetchingQr && !qrCodeImage && (
                           <>
                             {poll.link && (
-                              <TouchableOpacity className="flex-row items-center py-4" onPress={handleCopyLink}>
-                                <Icon name="link" size={20} color={theme === 'dark' ? '#fff' : 'black'} className="mr-3" />
+                              <TouchableOpacity
+                                className="flex-row items-center py-4"
+                                onPress={handleCopyLink}
+                              >
+                                <Icon
+                                  name="link"
+                                  size={20}
+                                  color={theme === 'dark' ? '#fff' : 'black'}
+                                  className="mr-3"
+                                />
                                 <Text
-                                  className={`text-[14px] tracking-wide ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+                                  className={`text-[14px] tracking-wide ${
+                                    theme === 'dark' ? 'text-white' : 'text-black'
+                                  }`}
                                   style={{ fontFamily: 'OpenSans-Medium' }}
                                 >
                                   Copy link
@@ -398,9 +457,16 @@ const PollDisplay = ({ navigation }) => {
                               onPress={() => fetchQrCode()}
                               disabled={isFetchingQr}
                             >
-                              <Icon name="qrcode" size={20} color={theme === 'dark' ? '#fff' : 'black'} className="mr-3" />
+                              <Icon
+                                name="qrcode"
+                                size={20}
+                                color={theme === 'dark' ? '#fff' : 'black'}
+                                className="mr-3"
+                              />
                               <Text
-                                className={`text-[14px] tracking-wide ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+                                className={`text-[14px] tracking-wide ${
+                                  theme === 'dark' ? 'text-white' : 'text-black'
+                                }`}
                                 style={{ fontFamily: 'OpenSans-Medium' }}
                               >
                                 Show QR Code
@@ -410,10 +476,18 @@ const PollDisplay = ({ navigation }) => {
                         )}
                         {!isFetchingQr && qrCodeImage && (
                           <View className="items-center py-4">
-                            <Image source={{ uri: qrCodeImage }} style={{ width: 200, height: 200 }} />
-                            <TouchableOpacity className="mt-4" onPress={() => setQrCodeImage(null)}>
+                            <Image
+                              source={{ uri: qrCodeImage }}
+                              style={{ width: 200, height: 200 }}
+                            />
+                            <TouchableOpacity
+                              className="mt-4"
+                              onPress={() => setQrCodeImage(null)}
+                            >
                               <Text
-                                className={`text-[14px] tracking-wide ${theme === 'dark' ? 'text-white' : 'text-black'}`}
+                                className={`text-[14px] tracking-wide ${
+                                  theme === 'dark' ? 'text-white' : 'text-black'
+                                }`}
                                 style={{ fontFamily: 'OpenSans-Medium' }}
                               >
                                 Back
@@ -487,7 +561,8 @@ const PollDisplay = ({ navigation }) => {
                   <MenuItem
                     onPress={() => {
                       setMenuVisible(false);
-                      showToast("info", "Edit feature coming soon!");
+                      console.log('Navigating to EditPoll with poll:', poll);
+                      navigation.navigate('EditPoll', { pollData: poll });
                     }}
                     textStyle={{
                       color: theme === 'dark' ? '#FFFFFF' : '#000000',

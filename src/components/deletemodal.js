@@ -13,7 +13,7 @@ const DeletePollModal = ({
     const handleDeletePoll = async () => {
       try {
         console.log("Delete confirmed, sending request for poll ID:", pollId);
-        const response = await axios.post(`http://192.168.0.55:8002/api/polls/${pollId}/delete`);
+        const response = await axios.post(`http://192.168.1.21:8000/api/polls/${pollId}/delete`);
         console.log("Delete response:", response.data);
         showToast("success", "Poll deleted successfully!");
         onClose();

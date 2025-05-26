@@ -5,17 +5,16 @@ import {
   TouchableOpacity,
   Image,
   TouchableHighlight,
-  ActivityIndicator
+  ActivityIndicator,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SplashScreen from "expo-splash-screen";
 import { ScrollView } from "react-native-gesture-handler";
-import axios from "axios"; 
-import useLoadFonts from '../src/hooks/useLoadFonts';
-import { ThemeContext } from '../src/components/ThemeContext';
-import LogoutModal from "../src/components/logoutmodal"; 
-
+import axios from "axios";
+import useLoadFonts from "../src/hooks/useLoadFonts";
+import { ThemeContext } from "../src/components/ThemeContext";
+import LogoutModal from "../src/components/logoutmodal";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -26,10 +25,12 @@ const avatarMap = {
 };
 
 const ProfilePage = ({ navigation }) => {
-  const [ logoutModalVisible, setLogoutModalVisible]  = useState(false);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [user, setUser] = useState(null);
-  const { theme, toggleTheme } = useContext(ThemeContext); 
+  const [editProfileExpanded, setEditProfileExpanded] = useState(false);
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const { loaded, fonterror } = useLoadFonts();
+
   if (!loaded && !fonterror) return null;
 
   useEffect(() => {
@@ -37,7 +38,7 @@ const ProfilePage = ({ navigation }) => {
       try {
         const token = await AsyncStorage.getItem("auth_token");
         if (token) {
-          const response = await axios.get("http://192.168.169.150:8000/api/profile", {
+          const response = await axios.get("http://192.168.1.21:8000/api/profile", {
             headers: { Authorization: `Bearer ${token}` },
           });
           console.log("Fetched user from API:", response.data);
@@ -69,271 +70,265 @@ const ProfilePage = ({ navigation }) => {
     loadUser();
 
     const unsubscribe = navigation.addListener("focus", loadUser);
-    return unsubscribe; // Cleanup listener
+    return unsubscribe;
   }, [navigation]);
 
   const handleLogout = () => {
     console.log("Initiating logout...");
     setLogoutModalVisible(false);
-    navigation.navigate('LogoutScreen', { user, theme });
-  };
-
-  const handleNavigation = (navigateTo, params) => {
-    if (navigateTo) {
-      navigation.navigate(navigateTo, params);
-    }
+    navigation.navigate("LogoutScreen", { user, theme });
   };
 
   return (
     <View
-      className={`flex-1 ${
-        theme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-[#F5F5F7]'
-      }`} 
+      className={`flex-1 ${theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#F5F5F7]"}`}
     >
-      <View className={`items-center justify-center 
-        ${theme === 'dark' ? 'bg-[#262626]' : 'bg-[#e2ebf1]'}`}>
+      <View
+        className={`items-center justify-center ${theme === "dark" ? "bg-[#262626]" : "bg-[#e2ebf1]"}`}
+      >
         <View className="items-center p-5">
           <Image
             source={
-              user?.avatar && avatarMap[user.avatar] ? avatarMap[user.avatar]
-              : require("../assets/images/default-avatar.webp")
+              user?.avatar && avatarMap[user.avatar]
+                ? avatarMap[user.avatar]
+                : require("../assets/images/default-avatar.webp")
             }
             className="w-[80px] h-[80px] mb-1 rounded-full border-2 border-[#50A8EE]"
           />
-            <Text className={`text-[15px] ${
-              theme === 'dark' ? 'text-white' : 'text-black'} mb-1 tracking-wide`}
-              style={{ fontFamily: 'OpenSans-SemiBold' }}
-            >
-              {user?.username || 'Loading...'}
-            </Text>
-            <Text className={`text-[12px] ${
-              theme === 'dark' ? 'text-[#AAA]' : 'text-[#444]'} tracking-wide`}
-              style={{ fontFamily: 'OpenSans-Regular' }}
-            >
-              {user?.email || 'Loading...'}
-            </Text>
+          <Text
+            className={`text-[15px] ${theme === "dark" ? "text-white" : "text-black"} mb-1 tracking-wide`}
+            style={{ fontFamily: "OpenSans-SemiBold" }}
+          >
+            {user?.username || "Loading..."}
+          </Text>
+          <Text
+            className={`text-[12px] ${theme === "dark" ? "text-[#AAA]" : "text-[#444]"} tracking-wide`}
+            style={{ fontFamily: "OpenSans-Regular" }}
+          >
+            {user?.email || "Loading..."}
+          </Text>
         </View>
       </View>
 
-        {/* <TouchableOpacity
-          className={`items-center justify-between rounded-lg p-6 border-b ${
-            theme === 'dark' ? 'border-[#444]' : 'border-[#ccc]'
-          }`}
-          onPress={() => handleNavigation('EditProfile', { user })}
-        >
-          <View className="flex-row items-center gap-1">
-          <Image
-              source={
-                user?.avatar && avatarMap[user.avatar]
-                  ? avatarMap[user.avatar]
-                  : require("../assets/images/default-avatar.webp")
-              }
-              className="w-[60px] h-[60px] rounded-full mr-2"
-            />
-            <View className="justify-center">
-              <Text
-                className={`text-[15px] ${
-                  theme === 'dark' ? 'text-white' : 'text-black'
-                } mb-1 tracking-wide`}
-                style={{ fontFamily: 'OpenSans-SemiBold' }}
-              >
-                {user?.username || 'Loading...'}
-              </Text>
-              <Text
-                className={`text-[13px] ${
-                  theme === 'dark' ? 'text-[#AAA]' : 'text-[#555]'
-                } tracking-wide`}
-                style={{ fontFamily: 'OpenSans-Regular' }}
-              >
-                Show profile
-              </Text>
+      <ScrollView className="mt-5 px-2.5">
+        <View className="gap-2">
+          <TouchableHighlight
+            className={`flex-row items-center justify-between ${theme === "dark" ? "bg-[#262626]" : "bg-white"} rounded-xl`}
+            underlayColor={theme === "dark" ? "#333333" : "#e5e5e5"}
+            onPress={() => navigation.navigate("MyPublicPolls")}
+            style={{
+              shadowColor: theme === "dark" ? "#000000" : "#555555",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 1,
+              elevation: 3,
+            }}
+          >
+            <View className="flex-row items-center justify-between w-full p-5">
+              <View className="flex-row items-center gap-2.5">
+                <Icon
+                  name="account-group-outline"
+                  size={17}
+                  color={theme === "dark" ? "white" : "black"}
+                />
+                <Text
+                  className={`text-[13px] ${theme === "dark" ? "text-white" : "text-black"} tracking-wide`}
+                  style={{ fontFamily: "OpenSans-SemiBold" }}
+                >
+                  Public Polls
+                </Text>
+              </View>
+              <Icon
+                name="chevron-right"
+                size={17}
+                color={theme === "dark" ? "#666" : "black"}
+              />
             </View>
-          </View>
-          <Icon
-            name="chevron-right"
-            size={20}
-            color={theme === 'dark' ? '#666' : '#ccc'}
-          />
-        </TouchableOpacity> */}
+          </TouchableHighlight>
 
-
-        <View className="mt-5 px-2.5">
-          <View className="gap-2">
-            <TouchableHighlight
-              className={`flex-row items-center justify-between ${
-                theme === 'dark' ? 'bg-[#262626]' : 'bg-white'
-              } rounded-xl`}
-              underlayColor={theme === 'dark' ? '#333333' : '#e5e5e5'}
-              onPress={() => navigation.navigate('MyPublicPolls')}
-              style={{
-                shadowColor: theme === 'dark' ? '#000000' : '#555555',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 1,
-                elevation: 3, 
-              }}
-            >
-              <View className="flex-row items-center justify-between w-full p-5">
-                <View className="flex-row items-center  gap-2.5">
-                  <Icon
-                    name="account-group-outline"
-                    size={17}
-                    color={theme === 'dark' ? 'white' : 'black'}
-                  />
-                  <Text
-                    className={`text-[13px]  ${
-                      theme === 'dark' ? 'text-white' : 'text-black'
-                    } tracking-wide`}
-                    style={{ fontFamily: 'OpenSans-SemiBold' }}
-                  >
-                    Public Polls
-                  </Text>
-                </View>
+          <TouchableHighlight
+            className={`flex-row items-center justify-between ${theme === "dark" ? "bg-[#262626]" : "bg-white"} rounded-xl`}
+            underlayColor={theme === "dark" ? "#333333" : "#e5e5e5"}
+            onPress={() => navigation.navigate("MyPrivatePolls")}
+            style={{
+              shadowColor: theme === "dark" ? "#000000" : "#555555",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 1,
+              elevation: 3,
+            }}
+          >
+            <View className="flex-row items-center justify-between w-full p-5">
+              <View className="flex-row items-center gap-2.5">
                 <Icon
-                  name="chevron-right"
+                  name="lock-outline"
                   size={17}
-                  color={theme === 'dark' ? '#666' : 'black'}
+                  color={theme === "dark" ? "white" : "black"}
                 />
+                <Text
+                  className={`text-[13px] ${theme === "dark" ? "text-white" : "text-black"} tracking-wide`}
+                  style={{ fontFamily: "OpenSans-SemiBold" }}
+                >
+                  Private Polls
+                </Text>
               </View>
-            </TouchableHighlight>
+              <Icon
+                name="chevron-right"
+                size={17}
+                color={theme === "dark" ? "#666" : "black"}
+              />
+            </View>
+          </TouchableHighlight>
 
+          {/* Edit Profile Expandable Section */}
+          <View>
             <TouchableHighlight
-              className={`flex-row items-center justify-between ${
-                theme === 'dark' ? 'bg-[#262626]' : 'bg-white'
-              } rounded-xl`}
-              underlayColor={theme === 'dark' ? '#333333' : '#e5e5e5'}
-              onPress={() => navigation.navigate('MyPrivatePolls')}
+              className={`flex-row items-center justify-between ${theme === "dark" ? "bg-[#262626]" : "bg-white"} rounded-xl`}
+              underlayColor={theme === "dark" ? "#333333" : "#e5e5e5"}
+              onPress={() => setEditProfileExpanded(!editProfileExpanded)}
               style={{
-                shadowColor: theme === 'dark' ? '#000000' : '#555555',
+                shadowColor: theme === "dark" ? "#000000" : "#555555",
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.3,
                 shadowRadius: 1,
-                elevation: 3, 
+                elevation: 3,
               }}
             >
               <View className="flex-row items-center justify-between w-full p-5">
-                <View className="flex-row items-center  gap-2.5">
-                  <Icon
-                    name="lock-outline"
-                    size={17}
-                    color={theme === 'dark' ? 'white' : 'black'}
-                  />
-                  <Text
-                    className={`text-[13px]  ${
-                      theme === 'dark' ? 'text-white' : 'text-black'
-                    } tracking-wide`}
-                    style={{ fontFamily: 'OpenSans-SemiBold' }}
-                  >
-                    Private Polls
-                  </Text>
-                </View>
-                <Icon
-                  name="chevron-right"
-                  size={17}
-                  color={theme === 'dark' ? '#666' : 'black'}
-                />
-              </View>
-            </TouchableHighlight>
-
-            <TouchableHighlight
-              className={`flex-row items-center justify-between ${
-                theme === 'dark' ? 'bg-[#262626]' : 'bg-white'
-              } rounded-xl`}
-              underlayColor={theme === 'dark' ? '#333333' : '#e5e5e5'}
-              onPress={() => handleNavigation('EditProfile', { user })}
-              style={{
-                shadowColor: theme === 'dark' ? '#000000' : '#555555',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 1,
-                elevation: 3, 
-              }}
-            >
-              <View className="flex-row items-center justify-between w-full p-5">
-                <View className="flex-row items-center  gap-2.5">
+                <View className="flex-row items-center gap-2.5">
                   <Icon
                     name="account-outline"
                     size={17}
-                    color={theme === 'dark' ? 'white' : 'black'}
+                    color={theme === "dark" ? "white" : "black"}
                   />
                   <Text
-                    className={`text-[13px]  ${
-                      theme === 'dark' ? 'text-white' : 'text-black'
-                    } tracking-wide`}
-                    style={{ fontFamily: 'OpenSans-SemiBold' }}
+                    className={`text-[13px] ${theme === "dark" ? "text-white" : "text-black"} tracking-wide`}
+                    style={{ fontFamily: "OpenSans-SemiBold" }}
                   >
                     Edit Profile
                   </Text>
                 </View>
                 <Icon
-                  name="chevron-right"
+                  name={editProfileExpanded ? "chevron-up" : "chevron-down"}
                   size={17}
-                  color={theme === 'dark' ? '#666' : 'black'}
+                  color={theme === "dark" ? "#666" : "black"}
                 />
               </View>
             </TouchableHighlight>
 
-            <TouchableHighlight
-              className={`flex-row items-center justify-between ${
-                theme === 'dark' ? 'bg-[#262626]' : 'bg-white'
-              } rounded-xl`}
-              underlayColor={theme === 'dark' ? '#333333' : '#e5e5e5'}
-              onPress={toggleTheme}
-              style={{
-                shadowColor: theme === 'dark' ? '#000000' : '#555555',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.3,
-                shadowRadius: 1,
-                elevation: 3, 
-              }}
-            >
-              <View className="flex-row items-center justify-between w-full p-5">
-                <View className="flex-row items-center  gap-2.5">
-                  <Icon
-                    name="moon-waning-crescent"
-                    size={17}
-                    color={theme === 'dark' ? 'white' : 'black'}
-                  />
-                  <Text
-                    className={`text-[13px]  ${
-                      theme === 'dark' ? 'text-white' : 'text-black'
-                    } tracking-wide`}
-                    style={{ fontFamily: 'OpenSans-SemiBold' }}
-                  >
-                    Dark Mode
-                  </Text>
-                </View>
-                <Icon
-                  name={theme === 'dark' ? 'radiobox-marked' : 'radiobox-blank'}
-                  size={15}
-                  color={theme === 'dark' ? '#50A8EE' : 'black'} 
-                />
-              </View>
-            </TouchableHighlight>
-
-                    
-          </View>
-        </View>
-
-        <View className="items-center justify-center mt-5">
-        <TouchableHighlight
-              className="flex-row items-center justify-between p-4 rounded-xl"
-              underlayColor={theme === 'dark' ? '#333333' : '#e5e5e5'}
-              onPress={() => setLogoutModalVisible(true)}
-            >
-              <View className="flex-row items-center gap-2.5">
-                <Icon name="logout" size={18} color="#FF3B30" />
-                <Text
-                  className="text-[13px] text-[#FF3B30] tracking-wide"
-                  style={{ fontFamily: 'OpenSans-SemiBold' }}
+            {editProfileExpanded && (
+              <View className="ml-10 mt-2 gap-2">
+                <TouchableHighlight
+                  className={`flex-row items-center justify-between ${theme === "dark" ? "bg-[#2A2A2A]" : "bg-[#F5F5F7]"} rounded-xl`}
+                  underlayColor={theme === "dark" ? "#333333" : "#e5e5e5"}
+                  onPress={() => navigation.navigate("EditUserName", { user })}
+                  style={{
+                    shadowColor: theme === "dark" ? "#000000" : "#555555",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 1,
+                    elevation: 3,
+                  }}
                 >
-                  Logout
+                  <View className="flex-row items-center justify-between w-full p-4">
+                    <Text
+                      className={`text-[12px] ${theme === "dark" ? "text-white" : "text-black"} tracking-wide`}
+                      style={{ fontFamily: "OpenSans-Regular" }}
+                    >
+                      Edit Username
+                    </Text>
+                    <Icon
+                      name="chevron-right"
+                      size={16}
+                      color={theme === "dark" ? "#666" : "black"}
+                    />
+                  </View>
+                </TouchableHighlight>
+
+                <TouchableHighlight
+                  className={`flex-row items-center justify-between ${theme === "dark" ? "bg-[#2A2A2A]" : "bg-[#F5F5F7]"} rounded-xl`}
+                  underlayColor={theme === "dark" ? "#333333" : "#e5e5e5"}
+                  onPress={() => navigation.navigate("EditPassword", { user })}
+                  style={{
+                    shadowColor: theme === "dark" ? "#000000" : "#555555",
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.3,
+                    shadowRadius: 1,
+                    elevation: 3,
+                  }}
+                >
+                  <View className="flex-row items-center justify-between w-full p-4">
+                    <Text
+                      className={`text-[12px] ${theme === "dark" ? "text-white" : "text-black"} tracking-wide`}
+                      style={{ fontFamily: "OpenSans-Regular" }}
+                    >
+                      Change Password
+                    </Text>
+                    <Icon
+                      name="chevron-right"
+                      size={16}
+                      color={theme === "dark" ? "#666" : "black"}
+                    />
+                  </View>
+                </TouchableHighlight>
+              </View>
+            )}
+          </View>
+
+          <TouchableHighlight
+            className={`flex-row items-center justify-between ${theme === "dark" ? "bg-[#262626]" : "bg-white"} rounded-xl`}
+            underlayColor={theme === "dark" ? "#333333" : "#e5e5e5"}
+            onPress={toggleTheme}
+            style={{
+              shadowColor: theme === "dark" ? "#000000" : "#555555",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 1,
+              elevation: 3,
+            }}
+          >
+            <View className="flex-row items-center justify-between w-full p-5">
+              <View className="flex-row items-center gap-2.5">
+                <Icon
+                  name="moon-waning-crescent"
+                  size={17}
+                  color={theme === "dark" ? "white" : "black"}
+                />
+                <Text
+                  className={`text-[13px] ${theme === "dark" ? "text-white" : "text-black"} tracking-wide`}
+                  style={{ fontFamily: "OpenSans-SemiBold" }}
+                >
+                  Dark Mode
                 </Text>
               </View>
-            </TouchableHighlight>
+              <Icon
+                name={theme === "dark" ? "radiobox-marked" : "radiobox-blank"}
+                size={15}
+                color={theme === "dark" ? "#50A8EE" : "black"}
+              />
+            </View>
+          </TouchableHighlight>
         </View>
 
-      {/* Logout Modal */}
+        <View className="items-center justify-center mt-5 mb-5">
+          <TouchableHighlight
+            className="flex-row items-center justify-between p-4 rounded-xl"
+            underlayColor={theme === "dark" ? "#333333" : "#e5e5e5"}
+            onPress={() => setLogoutModalVisible(true)}
+          >
+            <View className="flex-row items-center gap-2.5">
+              <Icon name="logout" size={18} color="#FF3B30" />
+              <Text
+                className="text-[13px] text-[#FF3B30] tracking-wide"
+                style={{ fontFamily: "OpenSans-SemiBold" }}
+              >
+                Logout
+              </Text>
+            </View>
+          </TouchableHighlight>
+        </View>
+      </ScrollView>
+
       <LogoutModal
         visible={logoutModalVisible}
         onClose={() => setLogoutModalVisible(false)}

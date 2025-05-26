@@ -7,7 +7,7 @@ import * as Clipboard from "expo-clipboard"; // For clipboard functionality
 import moment from "moment"; // For timeAgo calculation
 import { ThemeContext } from "../src/components/ThemeContext"; // Adjust path as needed
 
-const API_URL = "http://192.168.169.150:8000/api/getPolls";
+const API_URL = "http://192.168.1.21:8000/api/getPolls";
 
 const MyPrivatePolls = ({ navigation }) => {
   const { theme } = useContext(ThemeContext);

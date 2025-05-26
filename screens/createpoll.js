@@ -94,8 +94,8 @@ const CreatePollPage = ({ navigation, onClose, addPollOptimistically, fetchUserA
 
       const durationInMinutes = getDurationInMinutes();
       //const API_URL = "https://deeppink-sardine-461321.hostingersite.com/api/polls";
-      //const API_URL = "http://192.168.1.9:8000/api/polls";
-      const API_URL = getApiUrl('polls');
+      const API_URL = "http://192.168.1.21:8000/api/polls";
+      //const API_URL = getApiUrl('polls');
      
 
       const payload = {
