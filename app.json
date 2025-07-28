@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "tally_tap",
+    "name": "Tally Tap",
     "slug": "tally_tap",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/T.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {

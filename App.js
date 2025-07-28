@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { NavigationContainer, DefaultTheme, DarkTheme } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { View, StatusBar, Animated } from "react-native";
 import Toast from "react-native-toast-message";
 import { toastConfig } from "./src/utils/toastconfig";
-import * as SplashScreen from 'expo-splash-screen';
+import * as SplashScreen from "expo-splash-screen";
 import SignIn from "./screens/auth/login";
 import SignUp from "./screens/auth/signup";
 import EditProfile from "./screens/editprofile";
@@ -14,14 +18,19 @@ import MyPrivatePolls from "./screens/myprivatepolls";
 import MyPublicPolls from "./screens/mypublicpolls";
 import NavBottom from "./src/components/navbottom";
 import CreatePollPage from "./screens/createpoll";
-import { ThemeProvider, ThemeContext } from './src/components/ThemeContext';
+import { ThemeProvider, ThemeContext } from "./src/components/ThemeContext";
 import LogoutScreen from "./src/components/logoutscreen";
 import Bookmark from "./screens/bookmark";
 import EditPoll from "./screens/editpoll";
-import EditUserName from "./screens/EditUsernamePage"
-import EditPassword from "./screens/EditPasswordPage"
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import EditUserName from "./screens/EditUsernamePage";
+import EditPassword from "./screens/EditPasswordPage";
+import GroupHome from "./screens/groupPoll/groupHome";
+import GroupPollDisplay from "./screens/groupPoll/GroupPollDisplay";
+import PrivatePoll from "./screens/privatepoll";
+import CreateGroup from "./screens/groupPoll/CreateGroup";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import useFetchUserAndPolls from "./src/utils/userandpolls";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import "./global.css";
 
@@ -35,7 +44,7 @@ export default function App() {
   useEffect(() => {
     async function prepare() {
       try {
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       } catch (e) {
         console.warn(e);
       } finally {
@@ -60,7 +69,9 @@ function AppContainer({ appIsReady }) {
 
   if (!appIsReady) {
     return (
-      <View className={`flex-1 ${theme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-white'}`} />
+      <View
+        className={`flex-1 ${theme === "dark" ? "bg-[#1A1A1A]" : "bg-white"}`}
+      />
     );
   }
 
@@ -68,9 +79,9 @@ function AppContainer({ appIsReady }) {
     ...DefaultTheme,
     colors: {
       ...DefaultTheme.colors,
-      background: 'white',
-      card: 'white',
-      text: '#50A8EE',
+      background: "white",
+      card: "white",
+      text: "#50A8EE",
     },
   };
 
@@ -78,9 +89,9 @@ function AppContainer({ appIsReady }) {
     ...DarkTheme,
     colors: {
       ...DarkTheme.colors,
-      background: '#1A1A1A',
-      card: '#1A1A1A',
-      text: '#60B8FF',
+      background: "#1A1A1A",
+      card: "#1A1A1A",
+      text: "#60B8FF",
     },
   };
 
@@ -93,11 +104,7 @@ function AppContainer({ appIsReady }) {
           {
             translateX: progress.interpolate({
               inputRange: [0, 1, 2],
-              outputRange: [
-                layouts.screen.width,
-                0,
-                -layouts.screen.width,
-              ],
+              outputRange: [layouts.screen.width, 0, -layouts.screen.width],
             }),
           },
         ],
@@ -112,22 +119,30 @@ function AppContainer({ appIsReady }) {
   };
 
   return (
-    <View className={`flex-1 ${theme === 'dark' ? 'bg-[#1A1A1A]' : 'bg-[#F5F5F7]'}`}>
+    <View
+      className={`flex-1 ${theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#F5F5F7]"}`}
+    >
+      <SafeAreaProvider>
       <StatusBar
-        backgroundColor={theme === 'dark' ? '#1A1A1A' : '#50A8EE'}
+        backgroundColor={theme === "dark" ? "#000000" : "#ffffff"}
+        barStyle={theme === "dark" ? "light-content" : "dark-content"}
+        translucent={false}
       />
+
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer theme={theme === 'dark' ? MyDarkTheme : MyLightTheme}>
+        <NavigationContainer
+          theme={theme === "dark" ? MyDarkTheme : MyLightTheme}
+        >
           <Stack.Navigator
             initialRouteName="SignIn"
             screenOptions={{
               headerShown: false,
-              cardStyle: { backgroundColor: 'transparent' },
+              cardStyle: { backgroundColor: "transparent" },
               cardOverlayEnabled: true,
               cardStyleInterpolator: slideRightToLeftTransition,
               transitionSpec: {
-                open: { animation: 'timing', config: { duration: 270 } },
-                close: { animation: 'timing', config: { duration: 270 } },
+                open: { animation: "timing", config: { duration: 270 } },
+                close: { animation: "timing", config: { duration: 270 } },
               },
             }}
           >
@@ -149,10 +164,17 @@ function AppContainer({ appIsReady }) {
             <Stack.Screen name="EditPoll" component={EditPoll} />
             <Stack.Screen name="EditUserName" component={EditUserName} />
             <Stack.Screen name="EditPassword" component={EditPassword} />
+            <Stack.Screen name="PrivatePoll" component={PrivatePoll} />
+            <Stack.Screen name="GroupHome" component={GroupHome} />
+            <Stack.Screen
+              name="GroupPollDisplay"
+              component={GroupPollDisplay}
+            />
           </Stack.Navigator>
         </NavigationContainer>
       </GestureHandlerRootView>
       <Toast config={toastConfig} />
+      </SafeAreaProvider>
     </View>
   );
 }

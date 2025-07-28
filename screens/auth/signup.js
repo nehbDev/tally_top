@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -11,23 +11,23 @@ import {
   Modal,
   Alert,
   StatusBar,
-  TouchableHighlight
-} from 'react-native';
-import useLoadFonts from '../../src/hooks/useLoadFonts';
-import * as SplashScreen from 'expo-splash-screen';
-import { showToast } from '../../src/utils/toastconfig';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import axios from 'axios';
-import { getApiUrl } from '../../apiConfig';
+  TouchableHighlight,
+} from "react-native";
+import useLoadFonts from "../../src/hooks/useLoadFonts";
+import * as SplashScreen from "expo-splash-screen";
+import { showToast } from "../../src/utils/toastconfig";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+import axios from "axios";
+import { getApiUrl } from "../../apiConfig";
 
 SplashScreen.preventAutoHideAsync();
 
 const SignUp = ({ navigation }) => {
   const [step, setStep] = useState(1);
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
@@ -40,14 +40,16 @@ const SignUp = ({ navigation }) => {
 
   const handleNext = async () => {
     const stepFields = {
-      1: 'username',
-      2: 'email',
-      3: 'password',
+      1: "username",
+      2: "email",
+      3: "password",
     };
 
     const field = stepFields[step];
     if (!field) return;
-    setErrors(prevErrors => ({ ...prevErrors, [field]: false }));
+
+    setLoading(true);
+    setErrors((prevErrors) => ({ ...prevErrors, [field]: false }));
 
     const stepPayloads = {
       1: { username },
@@ -58,17 +60,19 @@ const SignUp = ({ navigation }) => {
     try {
       const response = await axios.post(API_URL, stepPayloads[step] || {});
       if (response?.data?.success) {
-        setStep(prevStep => prevStep + 1);
+        setStep((prevStep) => prevStep + 1);
       }
     } catch (error) {
-      const errorMessage = error?.response?.data?.message || 'Network error';
-      showToast('error', errorMessage);
-      setErrors(prevErrors => ({ ...prevErrors, [field]: true }));
+      const errorMessage = error?.response?.data?.message || "Network error";
+      showToast("error", errorMessage);
+      setErrors((prevErrors) => ({ ...prevErrors, [field]: true }));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const API_URL = getApiUrl('validate-step');
-  const API_BASE_URL = getApiUrl('signup'); // Base URL
+  const API_URL = getApiUrl("validate-step");
+  const API_BASE_URL = getApiUrl("signup"); // Base URL
   //const API_URL = getApiUrl('polls');
 
   const handleSignUp = useCallback(async () => {
@@ -76,7 +80,7 @@ const SignUp = ({ navigation }) => {
     setErrors({});
 
     try {
-      console.log('Signing up with email:', email);
+      console.log("Signing up with email:", email);
       const response = await axios.post(`${API_BASE_URL}`, {
         username,
         email,
@@ -84,36 +88,38 @@ const SignUp = ({ navigation }) => {
         password_confirmation: confirmPassword,
       });
 
-      console.log('Signup Response:', response.data);
+      console.log("Signup Response:", response.data);
 
       if (response?.data?.success) {
         Alert.alert(
-          'Verify Your Email',
+          "Verify Your Email",
           "We've sent a verification link to your email. Please check your inbox (and spam folder).",
           [
             {
-              text: 'OK',
+              text: "OK",
               onPress: () => {
-                navigation.replace('SignIn');
+                navigation.replace("SignIn");
               },
             },
           ],
           { cancelable: false }
         );
       } else {
-        throw new Error(response?.data?.message || 'Sign-up failed');
+        throw new Error(response?.data?.message || "Sign-up failed");
       }
     } catch (error) {
-      console.error('Signup Error:', error.response?.data);
-      const errorMessage = error?.response?.data?.message || 'An error occurred. Please try again.';
-      setErrors(prevErrors => ({
+      console.error("Signup Error:", error.response?.data);
+      const errorMessage =
+        error?.response?.data?.message ||
+        "An error occurred. Please try again.";
+      setErrors((prevErrors) => ({
         ...prevErrors,
         username: true,
         email: true,
         password: true,
         confirmPassword: true,
       }));
-      showToast('error', errorMessage);
+      showToast("error", errorMessage);
     } finally {
       setLoading(false);
     }
@@ -131,17 +137,21 @@ const SignUp = ({ navigation }) => {
 
   const handleSigninBack = useCallback(() => {
     const hasInput = username || email || password || confirmPassword;
-  
+
     if (hasInput) {
       setExitModalVisible(true);
     } else {
-      navigation.goBack(); 
+      navigation.goBack();
     }
   }, [username, email, password, confirmPassword, navigation]);
 
   useEffect(() => {
-    const showSubscription = Keyboard.addListener('keyboardDidShow', () => setKeyboardVisible(true));
-    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => setKeyboardVisible(false));
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () =>
+      setKeyboardVisible(true)
+    );
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () =>
+      setKeyboardVisible(false)
+    );
 
     return () => {
       showSubscription.remove();
@@ -153,12 +163,12 @@ const SignUp = ({ navigation }) => {
     navigation.setOptions({
       headerShown: true,
       headerStyle: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: "#FFFFFF",
         height: 55,
         elevation: 0,
         shadowOpacity: 0,
       },
-      headerTitle: '',
+      headerTitle: "",
       headerShadowVisible: false,
       headerLeft: () => (
         <TouchableHighlight
@@ -174,22 +184,22 @@ const SignUp = ({ navigation }) => {
 
   return (
     <>
-      <StatusBar backgroundColor="#50A8EE" />
+      <StatusBar backgroundColor="#FFFFFF" />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         className="flex-1"
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 0}
       >
-        <View className="flex-1 justify-center px-2.5 bg-white">
+        <View className="flex-1 justify-center px-4 bg-white">
           <Text
             className="text-[32px] tracking-wider mb-1"
-            style={{ fontFamily: 'OpenSans-Medium' }}
+            style={{ fontFamily: "OpenSans-Medium" }}
           >
             Sign Up
           </Text>
           <Text
             className="text-[16px] text-[#555] mb-12 tracking-wide"
-            style={{ fontFamily: 'OpenSans-Regular' }}
+            style={{ fontFamily: "OpenSans-Regular" }}
           >
             Create your account
           </Text>
@@ -198,32 +208,32 @@ const SignUp = ({ navigation }) => {
             <>
               <Text
                 className="text-[13px] text-[#555] mb-4 tracking-wider"
-                style={{ fontFamily: 'OpenSans-Regular' }}
+                style={{ fontFamily: "OpenSans-Regular" }}
               >
                 Step {step} of 3
               </Text>
               <View
                 className={`flex-row items-center border rounded-md bg-white px-2 h-16 mb-2 ${
-                  errors.username ? 'border-red-500' : 'border-[#999]'
+                  errors.username ? "border-red-500" : "border-[#999]"
                 }`}
               >
                 <Icon
                   name="account-outline"
                   size={20}
-                  color={errors.username ? '#FF4D4D' : '#999'}
-                  style={{ position: 'absolute', right: 10 }}
+                  color={errors.username ? "#FF4D4D" : "#999"}
+                  style={{ position: "absolute", right: 10 }}
                 />
                 <TextInput
                   className="flex-1 h-full text-black text-sm tracking-wider"
                   autoCorrect={false}
                   autoCapitalize="none"
                   placeholder="Username"
-                  placeholderTextColor={errors.username ? '#FF4D4D' : '#999'}
+                  placeholderTextColor={errors.username ? "#FF4D4D" : "#999"}
                   value={username}
-                  style={{ fontFamily: 'OpenSans-Regular' }}
-                  onChangeText={text => {
+                  style={{ fontFamily: "OpenSans-Regular" }}
+                  onChangeText={(text) => {
                     setUsername(text);
-                    setErrors(prev => ({ ...prev, username: false }));
+                    setErrors((prev) => ({ ...prev, username: false }));
                   }}
                 />
               </View>
@@ -234,20 +244,20 @@ const SignUp = ({ navigation }) => {
             <>
               <Text
                 className="text-[13px] text-[#555] mb-4 tracking-wider"
-                style={{ fontFamily: 'OpenSans-Regular', fontWeight: 600 }}
+                style={{ fontFamily: "OpenSans-Regular", fontWeight: 600 }}
               >
                 Step {step} of 3
               </Text>
               <View
                 className={`flex-row items-center border rounded-md bg-white px-2 h-16 mb-2 ${
-                  errors.email ? 'border-red-500' : 'border-[#999]'
+                  errors.email ? "border-red-500" : "border-[#999]"
                 }`}
               >
                 <Icon
                   name="email-outline"
                   size={20}
-                  color={errors.email ? '#FF4D4D' : '#999'}
-                  style={{ position: 'absolute', right: 10 }}
+                  color={errors.email ? "#FF4D4D" : "#999"}
+                  style={{ position: "absolute", right: 10 }}
                 />
                 <TextInput
                   className="flex-1 h-full text-black text-sm tracking-wider"
@@ -256,10 +266,10 @@ const SignUp = ({ navigation }) => {
                   value={email}
                   autoCapitalize="none"
                   placeholder="Email Address"
-                  style={{ fontFamily: 'OpenSans-Regular' }}
-                  onChangeText={text => {
+                  style={{ fontFamily: "OpenSans-Regular" }}
+                  onChangeText={(text) => {
                     setEmail(text);
-                    setErrors(prev => ({ ...prev, email: false }));
+                    setErrors((prev) => ({ ...prev, email: false }));
                   }}
                 />
               </View>
@@ -270,13 +280,13 @@ const SignUp = ({ navigation }) => {
             <>
               <Text
                 className="text-[13px] text-[#555] mb-4 tracking-wider"
-                style={{ fontFamily: 'OpenSans-Regular', fontWeight: 600 }}
+                style={{ fontFamily: "OpenSans-Regular", fontWeight: 600 }}
               >
                 Step {step} of 3
               </Text>
               <View
                 className={`flex-row items-center border rounded-md bg-white px-2 h-16 mb-2 ${
-                  errors.password ? 'border-red-500' : 'border-[#999]'
+                  errors.password ? "border-red-500" : "border-[#999]"
                 }`}
               >
                 <TextInput
@@ -286,24 +296,26 @@ const SignUp = ({ navigation }) => {
                   autoCapitalize="none"
                   autoCorrect={false}
                   placeholder="Password"
-                  onChangeText={text => {
+                  onChangeText={(text) => {
                     setPassword(text);
-                    setErrors(prev => ({ ...prev, password: false }));
+                    setErrors((prev) => ({ ...prev, password: false }));
                   }}
-                  style={{ fontFamily: 'OpenSans-Regular' }}
+                  style={{ fontFamily: "OpenSans-Regular" }}
                 />
-                <TouchableOpacity onPress={() => setPasswordVisible(!passwordVisible)}>
+                <TouchableOpacity
+                  onPress={() => setPasswordVisible(!passwordVisible)}
+                >
                   <Icon
-                    name={passwordVisible ? 'eye-off' : 'eye'}
+                    name={passwordVisible ? "eye-off" : "eye"}
                     size={22}
-                    color={errors.password ? '#FF4D4D' : '#666'}
+                    color={errors.password ? "#FF4D4D" : "#666"}
                     className="ml-2"
                   />
                 </TouchableOpacity>
               </View>
               <View
                 className={`flex-row items-center border rounded-md bg-white px-2 h-16 mb-2 ${
-                  errors.confirmPassword ? 'border-red-500' : 'border-[#999]'
+                  errors.confirmPassword ? "border-red-500" : "border-[#999]"
                 }`}
               >
                 <TextInput
@@ -313,17 +325,21 @@ const SignUp = ({ navigation }) => {
                   placeholder="Confirm Password"
                   autoCapitalize="none"
                   autoCorrect={false}
-                  onChangeText={text => {
+                  onChangeText={(text) => {
                     setConfirmPassword(text);
-                    setErrors(prev => ({ ...prev, confirmPassword: false }));
+                    setErrors((prev) => ({ ...prev, confirmPassword: false }));
                   }}
-                  style={{ fontFamily: 'OpenSans-Regular' }}
+                  style={{ fontFamily: "OpenSans-Regular" }}
                 />
-                <TouchableOpacity onPress={() => setConfirmPasswordVisible(!confirmPasswordVisible)}>
+                <TouchableOpacity
+                  onPress={() =>
+                    setConfirmPasswordVisible(!confirmPasswordVisible)
+                  }
+                >
                   <Icon
-                    name={confirmPasswordVisible ? 'eye-off' : 'eye'}
+                    name={confirmPasswordVisible ? "eye-off" : "eye"}
                     size={22}
-                    color={errors.confirmPassword ? '#FF4D4D' : '#666'}
+                    color={errors.confirmPassword ? "#FF4D4D" : "#666"}
                     className="ml-2"
                   />
                 </TouchableOpacity>
@@ -335,44 +351,44 @@ const SignUp = ({ navigation }) => {
             <TouchableHighlight
               underlayColor="#3F8CD6"
               className={`w-full p-3 rounded-2xl items-center bg-[#50A8EE] mt-3 mb-10 ${
-                step === 3 && (!password || !confirmPassword) ? 'opacity-50' : ''
+                step === 3 && (!password || !confirmPassword)
+                  ? "opacity-50"
+                  : ""
               }`}
               onPress={handleNext}
             >
               <Text
                 className="text-white text-[15px] tracking-wider"
-                style={{ fontFamily: 'OpenSans-Regular' }}
+                style={{ fontFamily: "OpenSans-Regular" }}
               >
                 Next
               </Text>
             </TouchableHighlight>
           ) : (
             <TouchableOpacity
-              className="w-full p-3 rounded-2xl items-center bg-[#50A8EE] mt-3 mb-10"
+              className={`w-full p-3 rounded-2xl items-center bg-[#50A8EE] mt-3 mb-10 ${
+                loading ? "opacity-50" : ""
+              }`}
               onPress={handleSignUp}
               disabled={loading}
             >
-              {loading ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Text
-                  className="text-white text-[15px] tracking-wider"
-                  style={{ fontFamily: 'OpenSans-Regular' }}
-                >
-                  Sign Up
-                </Text>
-              )}
+              <Text
+                className="text-white text-[15px] tracking-wider"
+                style={{ fontFamily: "OpenSans-Regular" }}
+              >
+                Sign Up
+              </Text>
             </TouchableOpacity>
           )}
 
-          <View className={isKeyboardVisible ? 'h-5' : 'h-0'} />
+          <View className={isKeyboardVisible ? "h-5" : "h-0"} />
 
           <View className="flex-row justify-center mt-4">
             <Text
               className="text-[14px] text-gray-600 tracking-wide"
-              style={{ fontFamily: 'OpenSans-Regular' }}
+              style={{ fontFamily: "OpenSans-Regular" }}
             >
-              Already have an account?{' '}
+              Already have an account?{" "}
             </Text>
             <TouchableHighlight
               underlayColor="#F5F5F7"
@@ -381,29 +397,25 @@ const SignUp = ({ navigation }) => {
             >
               <Text
                 className="text-[14px] text-[#50A8EE] tracking-wide"
-                style={{ fontFamily: 'OpenSans-Semibold' }}
+                style={{ fontFamily: "OpenSans-Semibold" }}
               >
                 Sign In
               </Text>
             </TouchableHighlight>
           </View>
         </View>
-        <Modal
-          visible={exitModalVisible}
-          transparent
-          animationType="fade"
-        >
+        <Modal visible={exitModalVisible} transparent animationType="fade">
           <View className="flex-1 bg-black/50 justify-end items-center">
             <View className="w-full bg-white p-6 rounded-xl shadow-lg">
               <Text
                 className="text-[16px] mb-2 text-black tracking-wide"
-                style={{ fontFamily: 'OpenSans-Regular', fontWeight: 600 }}
+                style={{ fontFamily: "OpenSans-Regular", fontWeight: 600 }}
               >
                 Do you want to stop creating your account?
               </Text>
               <Text
                 className="text-[13px] text-gray-600 text-left mb-7 tracking-wide"
-                style={{ fontFamily: 'OpenSans-Regular' }}
+                style={{ fontFamily: "OpenSans-Regular" }}
               >
                 If you stop now, you’ll lose any progress you made.
               </Text>
@@ -411,7 +423,7 @@ const SignUp = ({ navigation }) => {
                 <TouchableOpacity onPress={() => setExitModalVisible(false)}>
                   <Text
                     className="text-red-500 text-[14px] uppercase tracking-wide"
-                    style={{ fontFamily: 'OpenSans-Regular' }}
+                    style={{ fontFamily: "OpenSans-Regular" }}
                   >
                     Continue creating account
                   </Text>
@@ -424,7 +436,7 @@ const SignUp = ({ navigation }) => {
                 >
                   <Text
                     className="text-[#50A8EE] text-[14px] uppercase tracking-wide"
-                    style={{ fontFamily: 'OpenSans-Regular' }}
+                    style={{ fontFamily: "OpenSans-Regular" }}
                   >
                     Stop creating account
                   </Text>
@@ -433,6 +445,19 @@ const SignUp = ({ navigation }) => {
             </View>
           </View>
         </Modal>
+        {loading && (
+          <View className="absolute top-0 left-0 right-0 bottom-0 bg-black/40 items-center justify-center z-50">
+            <View className="bg-white px-6 py-4 rounded-2xl flex-row items-center space-x-3">
+              <ActivityIndicator size="small" color="#50A8EE" />
+              <Text
+                className="text-[14px] text-[#333]"
+                style={{ fontFamily: "OpenSans-Regular" }}
+              >
+                Please wait...
+              </Text>
+            </View>
+          </View>
+        )}
       </KeyboardAvoidingView>
     </>
   );

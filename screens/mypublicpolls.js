@@ -1,13 +1,15 @@
-import { FlatList, View, Text, TouchableOpacity, TouchableHighlight } from "react-native";
+import { FlatList, View, Text, TouchableOpacity, TouchableHighlight, SafeAreaView } from "react-native";
 import { useState, useEffect, useCallback, useContext } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import moment from "moment";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import * as Clipboard from "expo-clipboard"; // Import Clipboard for copy functionality
+import * as Clipboard from "expo-clipboard";
 import { ThemeContext } from "../src/components/ThemeContext"; // Adjust path as needed
+import { getApiUrl } from "../apiConfig";
 
-const API_URL = "http://192.168.1.21:8000/api/getPolls"; 
+const API_URL = getApiUrl("getPolls");
+
 const MyPublicPolls = ({ navigation }) => {
   const { theme } = useContext(ThemeContext);
   const [user, setUser] = useState(null);
@@ -28,14 +30,8 @@ const MyPublicPolls = ({ navigation }) => {
       console.log("Parsed user:", parsedUser);
       setUser(parsedUser);
 
-      if (!parsedUser) {
-        console.log("No user found in AsyncStorage. User might not be logged in.");
-        setUserPolls([]);
-        setVisiblePolls([]);
-        return;
-      }
-      if (!storedUserId) {
-        console.log("User found but no user_id present in AsyncStorage.");
+      if (!parsedUser || !storedUserId) {
+        console.log("No user or user_id found in AsyncStorage.");
         setUserPolls([]);
         setVisiblePolls([]);
         return;
@@ -74,14 +70,16 @@ const MyPublicPolls = ({ navigation }) => {
           ...poll,
           timeAgo: moment(poll.created_at).fromNow(),
           totalVotes: poll.total_votes,
-          duration: poll.duration || 60,
-          expirationTime: new Date(new Date(poll.created_at).getTime() + (poll.duration || 60) * 60_000),
-          isExpired: poll.is_expired,
+          duration: poll.duration || null, // Null for ongoing polls
+          expirationTime: poll.duration
+            ? new Date(new Date(poll.created_at).getTime() + poll.duration * 60_000)
+            : null,
+          isExpired: poll.duration ? new Date().getTime() > new Date(poll.created_at).getTime() + poll.duration * 60_000 : false,
         }));
 
       console.log("User-created polls:", userCreatedPolls);
       setUserPolls(userCreatedPolls);
-      setVisiblePolls(userCreatedPolls);
+      setVisiblePolls(userCreatedPolls); // All polls are visible
     } catch (error) {
       console.error("Error fetching user-created polls:", error.message);
       console.error("Response:", error.response?.data);
@@ -95,7 +93,6 @@ const MyPublicPolls = ({ navigation }) => {
       headerShown: true,
       headerStyle: {
         backgroundColor: theme === "dark" ? "#1A1A1A" : "#F5F5F7",
-        height: 60,
         elevation: theme === "dark" ? 2 : 1,
         shadowOpacity: theme === "dark" ? 4 : 2,
       },
@@ -131,23 +128,22 @@ const MyPublicPolls = ({ navigation }) => {
       const now = Date.now();
       let newExpiredPolls = {};
       let newRemainingTimes = {};
-      let updatedVisiblePolls = [];
 
       userPolls.forEach((poll) => {
-        const expirationTime = poll.expirationTime.getTime();
-        const gracePeriodEnd = expirationTime + 60_000;
-        const isExpired = now > expirationTime;
-        const isBeyondGracePeriod = now > gracePeriodEnd;
+        if (!poll.duration) {
+          // Ongoing polls (no duration)
+          newExpiredPolls[poll.id] = false;
+          newRemainingTimes[poll.id] = "Ongoing";
+        } else {
+          // Polls with duration
+          const expirationTime = poll.expirationTime.getTime();
+          const isExpired = now > expirationTime;
+          newExpiredPolls[poll.id] = isExpired;
 
-        newExpiredPolls[poll.id] = isExpired;
-
-        if (!isBeyondGracePeriod) {
-          updatedVisiblePolls.push(poll);
-          const timeDiff = expirationTime - now;
-
-          if (timeDiff <= 0) {
+          if (isExpired) {
             newRemainingTimes[poll.id] = "Expired";
           } else {
+            const timeDiff = expirationTime - now;
             const days = Math.floor(timeDiff / (24 * 60 * 60 * 1000));
             const hours = Math.floor((timeDiff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
             const minutes = Math.floor((timeDiff % (60 * 60 * 1000)) / (60 * 1000));
@@ -168,7 +164,7 @@ const MyPublicPolls = ({ navigation }) => {
 
       setExpiredPolls(newExpiredPolls);
       setRemainingTimes(newRemainingTimes);
-      setVisiblePolls(updatedVisiblePolls);
+      setVisiblePolls(userPolls); // All polls remain visible
     };
 
     updatePolls();
@@ -184,110 +180,76 @@ const MyPublicPolls = ({ navigation }) => {
     return remainingTimes[pollId] || "Loading...";
   };
 
-  // Navigation handler similar to HomeScreen
   const handlePollPress = (poll) => {
     navigation.navigate("PollDisplay", { poll });
   };
-
-  const renderPollItem = ({ item }) => (
-    <TouchableOpacity
-      className={`flex-row items-center mt-10 ${
-        theme === "dark" ? "bg-[#262626]" : "bg-white"
-      } rounded-lg p-4 mb-2.5 border border-[#ccc]`}
-      onPress={() => handlePollPress(item)} // Updated to pass the full poll object
-    >
-      <View className="flex-1">
-        <Text
-          className={`text-[16px] font-semibold ${
-            theme === "dark" ? "text-white" : "text-[#333]"
-          } mb-1`}
-        >
-          {item.title || "Untitled Poll"}
-        </Text>
-        <View className="flex-row items-center mb-1">
-          <Text
-            className={`text-[14px] ${theme === "dark" ? "text-[#AAA]" : "text-[#555]"} mr-1`}
-          >
-            Poll Link:
-          </Text>
-          <TouchableOpacity onPress={() => copyToClipboard(item.link)}>
-            <Icon name="content-copy" size={20} color="#007BFF" />
-          </TouchableOpacity>
-        </View>
-        <Text
-          className={`text-[14px] ${theme === "dark" ? "text-[#888]" : "text-[#888]"}`}
-        >
-          {expiredPolls[item.id] ? "Expired" : formatRemainingTime(item.id)}
-        </Text>
-      </View>
-      <Icon
-        name="chevron-right"
-        size={20}
-        color={theme === "dark" ? "#666" : "#CCCCCC"}
-      />
-    </TouchableOpacity>
-  );
 
   const copyToClipboard = async (text) => {
     await Clipboard.setStringAsync(text);
     console.log("Copied to clipboard:", text);
   };
 
-  // if (!user) {
-  //   return (
-  //     <View
-  //       className={`flex-1 justify-center items-center ${
-  //         theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#F5F5F7]"
-  //       }`}
-  //     >
-  //       <Icon
-  //         name="account-off-outline"
-  //         size={80}
-  //         color={theme === "dark" ? "#888" : "#ccc"}
-  //       />
-  //       <Text
-  //         className={`text-[18px] tracking-wide ${
-  //           theme === "dark" ? "text-[#AAA]" : "text-[#555]"
-  //         } text-center mt-5`}
-  //         style={{ fontFamily: "Raleway-Bold" }}
-  //       >
-  //         Please log in to view your public polls.
-  //       </Text>
-  //     </View>
-  //   );
-  // }
-
   return (
-    <View
-      className={`flex-1 px-2.5 ${theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#F5F5F7]"}`}
+    <SafeAreaView
+      className={`flex-1 ${theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#F5F5F7]"}`}
     >
-      {visiblePolls.length > 0 ? (
-        <FlatList
-          data={visiblePolls}
-          renderItem={renderPollItem}
-          keyExtractor={(item) => item.id.toString()}
-          refreshing={refreshing}
-          onRefresh={fetchUserCreatedPolls}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      ) : (
-        <View className="flex-1 justify-center items-center">
-          <Icon
-            name="checkbox-blank-off-outline"
-            size={50}
-            color={theme === "dark" ? "#888" : "#ccc"}
+      <View className="flex-1 px-2.5 pt-4">
+        {visiblePolls.length > 0 ? (
+          <FlatList
+            data={visiblePolls}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                className={`flex-row items-center mt-2.5 ${
+                  theme === "dark" ? "bg-[#262626]" : "bg-white"
+                } rounded-lg p-4 mb-2.5 border border-[#ccc]`}
+                onPress={() => handlePollPress(item)}
+              >
+                <View className="flex-1">
+                  <Text
+                    className={`text-[16px] font-semibold ${
+                      theme === "dark" ? "text-white" : "text-[#333]"
+                    } mb-1`}
+                  >
+                    {item.title || "Untitled Poll"}
+                  </Text>
+                  
+                  <Text
+                    className={`text-[14px] ${theme === "dark" ? "text-[#888]" : "text-[#888]"}`}
+                  >
+                    {expiredPolls[item.id] ? "Expired" : formatRemainingTime(item.id)}
+                  </Text>
+                </View>
+                <Icon
+                  name="chevron-right"
+                  size={20}
+                  color={theme === "dark" ? "#666" : "#CCCCCC"}
+                />
+              </TouchableOpacity>
+            )}
+            keyExtractor={(item) => item.id.toString()}
+            refreshing={refreshing}
+            onRefresh={fetchUserCreatedPolls}
+            contentContainerStyle={{ paddingBottom: 20 }}
           />
-          <Text
-            className={`text-[15px] tracking-wide ${
-              theme === "dark" ? "text-[#AAA]" : "text-[#555]"
-            } text-center mt-5`}
-            style={{ fontFamily: "Raleway-Bold" }}
-          >
-            You haven't created any public polls yet.
-          </Text>
-        </View>
-      )}
-    </View>
+        ) : (
+          <View className="flex-1 justify-center items-center">
+            <Icon
+              name="checkbox-blank-off-outline"
+              size={50}
+              color={theme === "dark" ? "#888" : "#ccc"}
+            />
+            <Text
+              className={`text-[15px] tracking-wide ${
+                theme === "dark" ? "text-[#AAA]" : "text-[#555]"
+              } text-center mt-5`}
+              style={{ fontFamily: "Raleway-Bold" }}
+            >
+              You haven't created any public polls yet.
+            </Text>
+          </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 };
 

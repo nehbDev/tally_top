@@ -9,23 +9,27 @@ import {
   ActivityIndicator,
   FlatList,
   TouchableHighlight,
+  SafeAreaView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as SplashScreen from "expo-splash-screen";
-import Toast from "react-native-toast-message";
-import useLoadFonts from "../src/hooks/useLoadFonts"; // Adjust path as needed
-import { toastConfig, showToast } from "../src/utils/toastconfig"; // Adjust path as needed
-import { ThemeContext } from "../src/components/ThemeContext"; // Adjust path as needed
+import useLoadFonts from "../src/hooks/useLoadFonts";
+import { toastConfig, showToast } from "../src/utils/toastconfig";
+import { ThemeContext } from "../src/components/ThemeContext";
+import { getApiUrl } from "../apiConfig";
 
 SplashScreen.preventAutoHideAsync();
 
 const EditPoll = ({ route, navigation }) => {
-  const { pollData } = route.params; // Get poll data from navigation params
+  const { pollData } = route.params;
   const { theme } = useContext(ThemeContext);
+  const insets = useSafeAreaInsets();
 
   const convertDurationFromMinutes = (minutes) => {
+    if (!minutes) return { value: "", unit: "minutes" }; // Handle null/undefined duration
     if (minutes >= 1440) {
       return { value: Math.floor(minutes / 1440), unit: "days" };
     } else if (minutes >= 60) {
@@ -35,14 +39,21 @@ const EditPoll = ({ route, navigation }) => {
     }
   };
 
-  const initialDuration = convertDurationFromMinutes(pollData.duration || 0);
+  const initialDuration = convertDurationFromMinutes(pollData.duration);
 
-  // Initialize state with poll data
   const [title, setTitle] = useState(pollData.title || "");
   const [description, setDescription] = useState(pollData.description || "");
-  const [options, setOptions] = useState(pollData.choices.map(choice => choice.option_text) || ["", ""]);
+  const [options, setOptions] = useState(
+    pollData.choices.map((choice) => ({
+      option_text: choice.option_text,
+      isEditable: false,
+    })) || [
+      { option_text: "", isEditable: true },
+      { option_text: "", isEditable: true },
+    ]
+  );
   const [pollType, setPollType] = useState(pollData.type || "public");
-  const [duration, setDuration] = useState(initialDuration.value);
+  const [duration, setDuration] = useState(initialDuration.value.toString()); // Convert to string
   const [durationUnit, setDurationUnit] = useState(initialDuration.unit);
   const [isLoading, setIsLoading] = useState(false);
   const [dots, setDots] = useState("");
@@ -60,29 +71,28 @@ const EditPoll = ({ route, navigation }) => {
   ];
 
   const getDurationInMinutes = () => {
-    let durationInMinutes;
+    if (!duration || isNaN(parseInt(duration, 10))) return null; // Return null if no duration
+    const parsedDuration = parseInt(duration, 10);
     switch (durationUnit) {
       case "minutes":
-        durationInMinutes = duration;
-        break;
+        return parsedDuration;
       case "hours":
-        durationInMinutes = duration * 60;
-        break;
+        return parsedDuration * 60;
       case "days":
-        durationInMinutes = duration * 24 * 60;
-        break;
+        return parsedDuration * 24 * 60;
       default:
-        durationInMinutes = duration;
+        return parsedDuration;
     }
-    return durationInMinutes;
   };
 
   const hasProgress = () => {
+    const durationInMinutes = getDurationInMinutes();
     return (
       title.trim() !== pollData.title ||
       description.trim() !== (pollData.description || "") ||
-      JSON.stringify(options) !== JSON.stringify(pollData.choices.map(choice => choice.option_text)) ||
-      getDurationInMinutes() !== (pollData.duration || 0) ||
+      JSON.stringify(options.map((opt) => opt.option_text)) !==
+        JSON.stringify(pollData.choices.map((choice) => choice.option_text)) ||
+      durationInMinutes !== (pollData.duration || null) ||
       pollType !== (pollData.type || "public")
     );
   };
@@ -101,22 +111,42 @@ const EditPoll = ({ route, navigation }) => {
 
   const handleEditPoll = async () => {
     try {
+      if (!title.trim()) {
+        showToast("error", "Poll title is required.");
+        return;
+      }
+      if (options.length < 2 || options.some((opt) => !opt.option_text.trim())) {
+        showToast("error", "At least two non-empty options are required.");
+        return;
+      }
+
+      setIsLoading(true);
       const [userId, token] = await Promise.all([
         AsyncStorage.getItem("user_id"),
         AsyncStorage.getItem("auth_token"),
       ]);
 
+      if (!userId || !token) {
+        showToast("error", "Authentication credentials are missing.");
+        return;
+      }
+
       const durationInMinutes = getDurationInMinutes();
-      const API_URL = `http://192.168.1.21:8000/api/editpoll/${pollData.id}`;
+      const API_URL = getApiUrl(`editpoll/${pollData.id}`);
 
       const payload = {
         user_id: parseInt(userId, 10),
         title: title.trim(),
         description: description?.trim() || "",
         type: pollType,
-        choices: options.map(opt => opt.trim()),
-        duration: durationInMinutes,
+        choices: options.map((opt) => opt.option_text.trim()),
       };
+
+      // Only include duration if it’s valid
+      if (durationInMinutes !== null) {
+        payload.duration = durationInMinutes;
+      }
+
       console.log("Requesting URL:", API_URL);
       console.log("Payload:", payload);
 
@@ -128,16 +158,40 @@ const EditPoll = ({ route, navigation }) => {
       });
       console.log("API Response:", data);
 
-      setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      setIsLoading(false);
-
-      showToast("success", "Poll updated successfully");
-      navigation.goBack();
+      if (data.success || data.message === "Poll updated successfully") {
+        showToast("success", "Poll updated successfully");
+        const updatedPoll = {
+          ...pollData,
+          title: title.trim(),
+          description: description?.trim() || "",
+          type: pollType,
+          choices: options.map((opt, index) => ({
+            id: pollData.choices[index]?.id || index + 1,
+            option_text: opt.option_text.trim(),
+          })),
+          duration: durationInMinutes,
+        };
+        navigation.reset({
+          index: 1,
+          routes: [
+            { name: "HomeScreen" },
+            { name: "PollDisplay", params: { poll: updatedPoll } },
+          ],
+        });
+      } else {
+        throw new Error(data.error || "Unexpected response from server.");
+      }
     } catch (error) {
-      console.error("Error updating poll:", error.response?.data || error);
-      const errorMessage = error.response?.data?.error || "Failed to update poll.";
+      console.error("Error updating poll:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+      });
+      const errorMessage =
+        error.response?.data?.error || "Failed to update poll.";
       showToast("error", errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -159,7 +213,9 @@ const EditPoll = ({ route, navigation }) => {
         console.log("Duration Unit:", item.value);
       }}
       className={`py-3 px-4 border-b ${
-        theme === "dark" ? "border-[#444] bg-[#1A1A1A]" : "border-[#ccc] bg-[#F5F5F7]"
+        theme === "dark"
+          ? "border-[#444] bg-[#1A1A1A]"
+          : "border-[#ccc] bg-[#F5F5F7]"
       }`}
     >
       <Text
@@ -176,12 +232,20 @@ const EditPoll = ({ route, navigation }) => {
   );
 
   return (
-    <View className={`flex-1 ${theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#FFFFFF]"}`}>
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: theme === "dark" ? "#1A1A1A" : "#FFFFFF",
+      }}
+    >
       <View
         className={`flex-row items-center px-2.5 justify-between py-2 ${
           theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#FFFFFF]"
         }`}
-        style={{ height: 60 }}
+        style={{
+          paddingTop: insets.top + 12,
+          paddingBottom: 12,
+        }}
       >
         <View className="flex-row items-center">
           <TouchableHighlight
@@ -189,7 +253,11 @@ const EditPoll = ({ route, navigation }) => {
             className="mr-3 mt-1 rounded-full"
             underlayColor={theme === "dark" ? "#555555" : "#F5F5F7"}
           >
-            <Icon name="close" size={22} color={theme === "dark" ? "#FFFFFF" : "#000000"} />
+            <Icon
+              name="close"
+              size={22}
+              color={theme === "dark" ? "#FFFFFF" : "#000000"}
+            />
           </TouchableHighlight>
           <Text
             className={`text-[18px] tracking-wider ${
@@ -214,13 +282,17 @@ const EditPoll = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
       <ScrollView
-        className={`flex-1 px-2.5 ${theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#FFFFFF]"}`}
+        className={`flex-1 px-2.5 ${
+          theme === "dark" ? "bg-[#1A1A1A]" : "bg-[#FFFFFF]"
+        }`}
         contentContainerStyle={{ paddingBottom: 40 }}
         keyboardShouldPersistTaps="handled"
       >
         <TextInput
           className={`border-b rounded-lg px-2.5 h-16 mb-4 text-[13px] tracking-wide ${
-            theme === "dark" ? "border-[#444] text-white" : "border-[#ccc] text-black"
+            theme === "dark"
+              ? "border-[#444] text-white"
+              : "border-[#ccc] text-black"
           }`}
           value={title}
           onChangeText={setTitle}
@@ -231,7 +303,9 @@ const EditPoll = ({ route, navigation }) => {
 
         <TextInput
           className={`border-b rounded-lg px-2.5 h-20 mb-10 text-[13px] tracking-wide ${
-            theme === "dark" ? "border-[#444] text-white" : "border-[#ccc] text-black"
+            theme === "dark"
+              ? "border-[#444] text-white"
+              : "border-[#ccc] text-black"
           }`}
           multiline
           value={description}
@@ -243,7 +317,9 @@ const EditPoll = ({ route, navigation }) => {
         />
 
         <Text
-          className={`text-[13px] mb-3 tracking-wide ${theme === "dark" ? "text-white" : "text-black"}`}
+          className={`text-[13px] mb-3 tracking-wide ${
+            theme === "dark" ? "text-white" : "text-black"
+          }`}
           style={{ fontFamily: "OpenSans-Bold" }}
         >
           Poll Options
@@ -258,16 +334,22 @@ const EditPoll = ({ route, navigation }) => {
             <TextInput
               className={`flex-1 h-full text-[12px] tracking-wide ${
                 theme === "dark" ? "text-white" : "text-black"
-              }`}
-              value={option}
+              } ${!option.isEditable ? "opacity-50" : ""}`}
+              value={option.option_text}
               onChangeText={(text) => {
-                const newOptions = [...options];
-                newOptions[index] = text;
-                setOptions(newOptions);
+                if (option.isEditable) {
+                  const newOptions = [...options];
+                  newOptions[index] = {
+                    ...newOptions[index],
+                    option_text: text,
+                  };
+                  setOptions(newOptions);
+                }
               }}
               placeholder={`Option ${index + 1}`}
               style={{ fontFamily: "OpenSans-Medium" }}
               placeholderTextColor={theme === "dark" ? "#fff" : "#000"}
+              editable={option.isEditable}
             />
           </View>
         ))}
@@ -275,9 +357,15 @@ const EditPoll = ({ route, navigation }) => {
         {options.length < 6 && (
           <TouchableOpacity
             className="flex-row items-left mb-5 mt-2 justify-end"
-            onPress={() => setOptions([...options, ""])}
+            onPress={() =>
+              setOptions([...options, { option_text: "", isEditable: true }])
+            }
           >
-            <Icon name="plus" size={19} color={theme === "dark" ? "#60B8FF" : "#50A8EE"} />
+            <Icon
+              name="plus"
+              size={19}
+              color={theme === "dark" ? "#60B8FF" : "#50A8EE"}
+            />
             <Text
               className="text-[12px] text-[#50A8EE] tracking-wide"
               style={{ fontFamily: "OpenSans-Medium" }}
@@ -288,10 +376,12 @@ const EditPoll = ({ route, navigation }) => {
         )}
 
         <Text
-          className={`text-[13px] mb-3 tracking-wide ${theme === "dark" ? "text-white" : "text-black"}`}
+          className={`text-[13px] mb-3 tracking-wide ${
+            theme === "dark" ? "text-white" : "text-black"
+          }`}
           style={{ fontFamily: "OpenSans-Bold" }}
         >
-          Set Duration
+          Set Duration (Optional)
         </Text>
         <View
           className={`flex-row items-center mb-8 w-full border-b rounded-md h-12 px-2.5 ${
@@ -302,12 +392,13 @@ const EditPoll = ({ route, navigation }) => {
             className={`flex-1 h-full text-[12px] tracking-wide ${
               theme === "dark" ? "text-white" : "text-black"
             }`}
-            value={duration.toString()}
+            value={duration}
             onChangeText={(text) => {
-              const newDuration = parseInt(text, 10) || "";
-              setDuration(newDuration);
+              const newDuration = text === "" ? "" : parseInt(text, 10) || "";
+              setDuration(newDuration.toString());
             }}
             keyboardType="numeric"
+            placeholder="Enter duration (optional)"
             placeholderTextColor={theme === "dark" ? "#fff" : "#000"}
             style={{ fontFamily: "OpenSans-Medium" }}
           />
@@ -318,17 +409,26 @@ const EditPoll = ({ route, navigation }) => {
             }`}
           >
             <Text
-              className={`text-[12px] tracking-wide ${theme === "dark" ? "text-white" : "text-black"}`}
+              className={`text-[12px] tracking-wide ${
+                theme === "dark" ? "text-white" : "text-black"
+              }`}
               style={{ fontFamily: "OpenSans-Medium" }}
             >
-              {durationUnits.find((unit) => unit.value === durationUnit)?.label || "Select"}
+              {durationUnits.find((unit) => unit.value === durationUnit)
+                ?.label || "Select"}
             </Text>
-            <Icon name="chevron-down" size={20} color={theme === "dark" ? "#fff" : "#444"} />
+            <Icon
+              name="chevron-down"
+              size={20}
+              color={theme === "dark" ? "#fff" : "#444"}
+            />
           </TouchableOpacity>
         </View>
 
         <Text
-          className={`text-[13px] mb-3 tracking-wide ${theme === "dark" ? "text-white" : "text-black"}`}
+          className={`text-[13px] mb-3 tracking-wide ${
+            theme === "dark" ? "text-white" : "text-black"
+          }`}
           style={{ fontFamily: "OpenSans-Bold" }}
         >
           Visibility
@@ -340,7 +440,9 @@ const EditPoll = ({ route, navigation }) => {
           >
             <View
               className={`w-5 h-5 rounded-full border-2 mr-2.5 ${
-                pollType === "public" ? "border-[#50A8EE] bg-[#50A8EE]" : "border-[#ccc]"
+                pollType === "public"
+                  ? "border-[#50A8EE] bg-[#50A8EE]"
+                  : "border-[#ccc]"
               }`}
             >
               {pollType === "public" && (
@@ -349,13 +451,17 @@ const EditPoll = ({ route, navigation }) => {
             </View>
             <View>
               <Text
-                className={`text-[13px] tracking-wide ${theme === "dark" ? "text-white" : "text-black"}`}
+                className={`text-[13px] tracking-wide ${
+                  theme === "dark" ? "text-white" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-Semibold" }}
               >
                 Public Poll
               </Text>
               <Text
-                className={`text-[12px] tracking-wide ${theme === "dark" ? "text-[#fff]" : "text-black"}`}
+                className={`text-[12px] tracking-wide ${
+                  theme === "dark" ? "text-[#fff]" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-Medium" }}
               >
                 Anyone can vote
@@ -369,7 +475,9 @@ const EditPoll = ({ route, navigation }) => {
           >
             <View
               className={`w-5 h-5 rounded-full border-2 mr-2.5 ${
-                pollType === "private" ? "border-[#50A8EE] bg-[#50A8EE]" : "border-[#ccc]"
+                pollType === "private"
+                  ? "border-[#50A8EE] bg-[#50A8EE]"
+                  : "border-[#ccc]"
               }`}
             >
               {pollType === "private" && (
@@ -378,13 +486,17 @@ const EditPoll = ({ route, navigation }) => {
             </View>
             <View>
               <Text
-                className={`text-[13px] tracking-wide ${theme === "dark" ? "text-white" : "text-black"}`}
+                className={`text-[13px] tracking-wide ${
+                  theme === "dark" ? "text-white" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-Semibold" }}
               >
                 Private Poll
               </Text>
               <Text
-                className={`text-[12px] tracking-wide w-2/3 ${theme === "dark" ? "text-[#fff]" : "text-black"}`}
+                className={`text-[12px] tracking-wide w-2/3 ${
+                  theme === "dark" ? "text-[#fff]" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-Medium" }}
               >
                 Only people with access can vote with the link
@@ -406,7 +518,9 @@ const EditPoll = ({ route, navigation }) => {
           onPress={() => setPickerVisible(false)}
         >
           <View
-            className={`w-full max-h-[200px] ${theme === "dark" ? "bg-[#262626]" : "bg-[#F5F5F7]"}`}
+            className={`w-full max-h-[200px] ${
+              theme === "dark" ? "bg-[#262626]" : "bg-[#F5F5F7]"
+            }`}
           >
             <FlatList
               data={durationUnits}
@@ -418,21 +532,19 @@ const EditPoll = ({ route, navigation }) => {
         </TouchableOpacity>
       </Modal>
 
-      {isLoading && (
-        <Modal transparent={true} animationType="fade">
-          <View className="flex-1 justify-center items-center bg-black/50">
-            <View className="w-3/5 items-center">
-              <ActivityIndicator size="large" color="#50A8EE" />
-              <Text
-                className="text-white text-[15px] tracking-wide"
-                style={{ fontFamily: "OpenSans-Medium" }}
-              >
-                Updating poll{dots}
-              </Text>
-            </View>
+      <Modal transparent={true} animationType="fade" visible={isLoading}>
+        <View className="flex-1 justify-center items-center bg-black/50">
+          <View className="w-3/5 items-center">
+            <ActivityIndicator size="large" color="#50A8EE" />
+            <Text
+              className="text-white text-[15px] tracking-wide"
+              style={{ fontFamily: "OpenSans-Medium" }}
+            >
+              Updating poll{dots}
+            </Text>
           </View>
-        </Modal>
-      )}
+        </View>
+      </Modal>
 
       <Modal
         transparent={true}
@@ -447,16 +559,22 @@ const EditPoll = ({ route, navigation }) => {
             onPress={() => setConfirmCloseVisible(false)}
           >
             <View
-              className={`w-full p-6 rounded-t-3xl ${theme === "dark" ? "bg-[#262626]" : "bg-[#FFFFFF]"}`}
+              className={`w-full p-6 rounded-t-3xl ${
+                theme === "dark" ? "bg-[#262626]" : "bg-[#FFFFFF]"
+              }`}
             >
               <Text
-                className={`text-[14px] tracking-wide mb-3 ${theme === "dark" ? "text-white" : "text-black"}`}
+                className={`text-[14px] tracking-wide mb-3 ${
+                  theme === "dark" ? "text-white" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-SemiBold" }}
               >
                 Do you want to stop editing your poll?
               </Text>
               <Text
-                className={`text-[14px] tracking-wide mb-10 ${theme === "dark" ? "text-[#ccc]" : "text-black"}`}
+                className={`text-[14px] tracking-wide mb-10 ${
+                  theme === "dark" ? "text-[#ccc]" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-Regular" }}
               >
                 If you stop now, you’ll lose any changes you made.
@@ -509,19 +627,26 @@ const EditPoll = ({ route, navigation }) => {
             onPress={() => setConfirmSaveVisible(false)}
           >
             <View
-              className={`w-full p-6 rounded-t-3xl ${theme === "dark" ? "bg-[#262626]" : "bg-[#FFFFFF]"}`}
+              className={`w-full p-6 rounded-t-3xl ${
+                theme === "dark" ? "bg-[#262626]" : "bg-[#FFFFFF]"
+              }`}
             >
               <Text
-                className={`text-[14px] tracking-wide mb-3 ${theme === "dark" ? "text-white" : "text-black"}`}
+                className={`text-[14px] tracking-wide mb-3 ${
+                  theme === "dark" ? "text-white" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-SemiBold" }}
               >
                 Are you sure you want to save the changes?
               </Text>
               <Text
-                className={`text-[14px] tracking-wide mb-10 ${theme === "dark" ? "text-[#ccc]" : "text-black"}`}
+                className={`text-[14px] tracking-wide mb-10 ${
+                  theme === "dark" ? "text-[#ccc]" : "text-black"
+                }`}
                 style={{ fontFamily: "OpenSans-Regular" }}
               >
-                This will update the poll with your current changes. Once you add a new row, it cannot be deleted unless you delete the poll.
+                This will update the poll with your current changes. Once you
+                add a new row, it cannot be deleted unless you delete the poll.
               </Text>
               <View className="flex-row gap-2 justify-between">
                 <TouchableOpacity
@@ -557,9 +682,7 @@ const EditPoll = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
       </Modal>
-
-      <Toast config={toastConfig} />
-    </View>
+    </SafeAreaView>
   );
 };
 

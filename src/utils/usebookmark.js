@@ -2,89 +2,141 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApiUrl } from '../../apiConfig';
 
-export const useBookmark = (poll) => {
+export const useBookmark = (poll, showToast) => {
   const [bookmarked, setBookmarked] = useState(false);
+  const [bookmarkCount, setBookmarkCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [token, setToken] = useState(null);
   const [user, setUser] = useState(null);
 
+  // Load user data
   useEffect(() => {
-    const loadAuthData = async () => {
+    const loadUserData = async () => {
       try {
-        const storedToken = await AsyncStorage.getItem('auth_token');
         const storedUser = await AsyncStorage.getItem('user');
-        if (storedToken && storedUser) {
-          setToken(storedToken);
+        console.log('Loaded user data:', { user: storedUser ? 'present' : 'missing' });
+        if (storedUser) {
           setUser(JSON.parse(storedUser));
+        } else {
+          setError('User data missing');
+          showToast('error', 'Please sign in to bookmark');
         }
       } catch (err) {
-        console.error('Error loading auth data:', err);
-        setError('Failed to load authentication data');
+        console.error('Error loading user data:', err.message);
+        setError('Failed to load user data');
+        showToast('error', 'Failed to load user data');
       }
     };
-    loadAuthData();
-  }, []);
+    loadUserData();
+  }, [showToast]);
 
+  // Fetch initial bookmark state
   useEffect(() => {
-    setError(null); // Clear error on new poll or token
-    const checkBookmark = async () => {
-      if (!token || !poll?.id) return;
+    const fetchBookmarkStatus = async () => {
+      if (!poll?.id || !user?.id) {
+        console.log('Skipping bookmark check:', { pollId: poll?.id, userId: user?.id });
+        return;
+      }
+      setLoading(true);
       try {
-        const response = await fetch(getApiUrl(`bookmarks/${poll.id}/check`), {
+        const url = getApiUrl(`bookmarks/${poll.id}/check?user_id=${user.id}`);
+        console.log('Checking bookmark status at:', url);
+        const response = await fetch(url, {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
         });
+        if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+        }
         const data = await response.json();
+        console.log('Bookmark check response:', data);
         if (data.success) {
           setBookmarked(data.bookmarked);
+          setBookmarkCount(data.bookmark_count);
+          setError(null);
         } else {
           setError(data.message);
+          showToast('error', data.message);
         }
       } catch (error) {
-        console.error('Check bookmark error:', error);
-        setError('Failed to check bookmark status');
+        console.error('Check bookmark error:', error.message);
+        let errorMessage = 'Failed to check bookmark status';
+        if (error.message.includes('400')) {
+          errorMessage = 'Invalid request data';
+        } else if (error.message.includes('403')) {
+          errorMessage = 'Unauthorized to view bookmark status';
+        } else if (error.message.includes('404')) {
+          errorMessage = 'Poll not found';
+        } else if (error.message.includes('500')) {
+          errorMessage = 'Server error';
+        }
+        setError(errorMessage);
+        showToast('error', errorMessage);
+      } finally {
+        setLoading(false);
       }
     };
-    checkBookmark();
-  }, [poll?.id, token]);
+    fetchBookmarkStatus();
+  }, [poll?.id, user?.id, showToast]);
 
   const toggleBookmark = async () => {
-    if (!token) {
-      setError('Please sign in to bookmark');
+    if (!poll?.id) {
+      setError('Invalid poll ID');
+      showToast('error', 'Invalid poll');
+      console.log('Bookmark failed: No poll ID');
       return;
     }
-    if (poll.type === 'private' && poll.user_id !== user?.id) {
-      setError('This is a private poll');
+    if (!user?.id) {
+      setError('User data missing');
+      showToast('error', 'Please sign in to bookmark');
+      console.log('Bookmark failed: No user ID');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch(getApiUrl(`bookmarks/${poll.id}/toggle`), {
+      const url = getApiUrl('bookmark');
+      console.log('Bookmarking at:', url, 'with body:', { poll_id: poll.id, user_id: user.id });
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ poll_id: poll.id, user_id: user.id }),
       });
-
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
       const data = await response.json();
+      console.log('Bookmark response:', data);
       if (data.success) {
         setBookmarked(data.bookmarked);
+        setBookmarkCount(data.bookmark_count);
         setError(null);
+        showToast('success', data.message);
       } else {
         setError(data.message);
+        showToast('error', data.message);
       }
     } catch (error) {
-      console.error('Toggle bookmark error:', error);
-      setError('Failed to toggle bookmark');
+      console.error('Bookmark error:', error.message);
+      let errorMessage = 'Failed to toggle bookmark';
+      if (error.message.includes('400')) {
+        errorMessage = 'Invalid request data';
+      } else if (error.message.includes('403')) {
+        errorMessage = 'Unauthorized to bookmark this poll';
+      } else if (error.message.includes('404')) {
+        errorMessage = 'Poll not found';
+      } else if (error.message.includes('500')) {
+        errorMessage = 'Server error';
+      }
+      setError(errorMessage);
+      showToast('error', errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  return { bookmarked, toggleBookmark, loading, error };
+  return { bookmarked, bookmarkCount, toggleBookmark, loading, error };
 };

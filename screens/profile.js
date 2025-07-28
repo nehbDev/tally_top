@@ -15,6 +15,7 @@ import axios from "axios";
 import useLoadFonts from "../src/hooks/useLoadFonts";
 import { ThemeContext } from "../src/components/ThemeContext";
 import LogoutModal from "../src/components/logoutmodal";
+import { getApiUrl } from "../apiConfig";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,7 +39,7 @@ const ProfilePage = ({ navigation }) => {
       try {
         const token = await AsyncStorage.getItem("auth_token");
         if (token) {
-          const response = await axios.get("http://192.168.1.21:8000/api/profile", {
+          const response = await axios.get(getApiUrl("profile"), {
             headers: { Authorization: `Bearer ${token}` },
           });
           console.log("Fetched user from API:", response.data);
